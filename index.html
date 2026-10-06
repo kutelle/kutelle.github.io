@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catálogo Kutelle</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kutelle">
+<meta name="theme-color" content="#351715">
+<link rel="apple-touch-icon" href="icono.png">
+<link rel="icon" href="icono.png">
+<meta property="og:title" content="Catálogo Kutelle">
+<meta name="description" content="Catálogo Kutelle: piezas disponibles, precios y tallas.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;1,6..96,400&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EBE2D9; --card:#FFFFFF; --ink:#351715; --muted:#6F5B49; --line:#BEA994; --mauve:#57100C; --mauve-soft:#F2E7E2; --rosa:#DDB5B5; --cafe:#91775E; --sold:#91775E;
+  --serif:"Bodoni Moda","Didot","Bodoni 72",Georgia,serif; --sans:"Jost","Avenir Next",system-ui,-apple-system,sans-serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); color-scheme:light only;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 64px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+img{max-width:100%;display:block}
+.wrap{max-width:1100px;margin:0 auto;padding:0 18px 56px}
+.masthead{background:var(--ink);color:#fff;margin:0 -18px;padding:calc(38px + env(safe-area-inset-top,0px)) 22px 30px;margin-top:calc(-1 * env(safe-area-inset-top,0px))}
+.masthead .cover{border-radius:2px}
+.cover{width:100%;aspect-ratio:4/5;max-height:70vh;object-fit:cover;border-radius:4px;margin-bottom:22px}
+.kicker{font-family:var(--serif);font-style:italic;font-size:clamp(1.4rem,6vw,2rem);color:var(--rosa);margin:0 0 4px;line-height:1}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(3.4rem,16vw,6.8rem);line-height:.92;letter-spacing:.01em;margin:0;color:#FFFFFF}
+h1 em{font-style:italic}
+.updated{margin:14px 0 0;color:var(--line);font-size:.92rem;letter-spacing:.01em}
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);margin:0 -18px;padding:10px 18px;border-bottom:1px solid var(--line)}
+.rule{width:56px;height:2px;background:var(--rosa);margin:16px 0 0}
+.nav div{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;max-width:1100px;margin:0 auto}
+.nav div::-webkit-scrollbar{display:none}
+.pill{flex:none;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:7px 15px;font-size:.92rem;cursor:pointer;white-space:nowrap}
+.pill[aria-pressed="true"]{background:var(--mauve);color:#fff;border-color:var(--mauve)}
+.pill:focus-visible,.card:focus-visible,.close:focus-visible,.cta:focus-visible{outline:2px solid var(--mauve);outline-offset:3px}
+section{margin-top:34px}
+h2{font-family:var(--serif);font-weight:400;font-style:italic;font-size:2rem;line-height:1.1;margin:0 0 4px}
+.count{color:var(--muted);font-size:.88rem;margin:0 0 16px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}
+@media (min-width:700px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1000px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.card{border:0;background:transparent;padding:0;text-align:left;cursor:pointer;display:block;width:100%}
+.ph{position:relative;aspect-ratio:3/4;border-radius:4px;overflow:hidden;background:var(--mauve-soft)}
+.ph img{width:100%;height:100%;object-fit:cover}
+.ph .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--cafe)}
+.card.out .ph img,.card.out .ph .none{filter:grayscale(1);opacity:.55}
+.tag{position:absolute;left:8px;top:8px;background:var(--rosa);color:#351715;font-size:.76rem;font-weight:500;border-radius:999px;padding:3px 10px}
+.tag.out{background:#351715;color:#FFFFFF}
+.name{margin:10px 0 2px;font-size:.95rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.meta{color:var(--muted);font-size:.85rem}
+.price{font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+.card.out .price{color:var(--sold);text-decoration:line-through;font-weight:500}
+.empty{text-align:center;color:var(--muted);padding:40px 10px}
+.empty button{margin-top:12px;border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 16px;cursor:pointer;color:var(--ink)}
+footer{margin:56px -18px -56px;padding:28px 22px calc(28px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--line);font-size:.88rem;text-align:center}
+footer b{display:block;font-family:var(--serif);font-weight:400;font-size:1.6rem;color:#fff;margin-bottom:4px}
+dialog{border:0;padding:0;background:var(--card);color:var(--ink);width:min(520px,100%);max-height:calc(100% - 24px);border-radius:14px;overflow:auto}
+dialog::backdrop{background:rgba(53,23,21,.6)}
+@media (max-width:600px){dialog{margin:auto 0 0;width:100%;max-width:100%;border-radius:16px 16px 0 0;max-height:calc(100% - env(safe-area-inset-top,0px) - 8px);padding-bottom:env(safe-area-inset-bottom,0px)}}
+.dtop{position:relative}
+.close{position:absolute;right:10px;top:10px;z-index:2;width:40px;height:40px;border-radius:50%;border:0;background:var(--paper);color:var(--ink);font-size:1.5rem;line-height:1;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.15)}
+.gal{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;background:var(--mauve-soft)}
+.gal::-webkit-scrollbar{display:none}
+.gal img,.gal .none{flex:0 0 100%;width:100%;aspect-ratio:3/4;object-fit:cover;scroll-snap-align:center}
+.gal .none{display:flex;align-items:center;justify-content:center;color:var(--cafe)}
+.dots{display:flex;justify-content:center;gap:6px;padding:10px 0 0}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--ink)}
+.dbody{padding:14px 20px 22px;background:var(--card)}
+.dname{font-family:var(--serif);font-size:1.6rem;line-height:1.15;margin:4px 0 6px;font-weight:400}
+.dprice{font-size:1.3rem;font-weight:600;font-variant-numeric:tabular-nums}
+.specs{margin:16px 0 0;border-top:1px solid var(--line)}
+.specs div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.specs dt{color:var(--muted)}
+.specs dd{margin:0;font-weight:500;text-align:right}
+.avail{color:var(--mauve)}
+.avail.out{color:var(--sold)}
+.cta{display:block;width:100%;margin-top:18px;text-align:center;text-decoration:none;background:var(--mauve);color:#fff;border-radius:999px;padding:14px;font-weight:600}
+.cta[aria-disabled="true"]{background:var(--line);color:var(--muted);pointer-events:none}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead" id="mast"></header>
+  <nav class="nav" aria-label="Categorías"><div id="pills"></div></nav>
+  <main id="main"></main>
+  <footer id="foot"></footer>
+</div>
+<dialog id="dlg" aria-labelledby="dName">
+  <div class="dtop"><button class="close" id="close" aria-label="Cerrar">×</button><div class="gal" id="gal"></div></div>
+  <div class="dots" id="dots"></div>
+  <div class="dbody">
+    <h3 class="dname" id="dName"></h3>
+    <div class="dprice" id="dPrice"></div>
+    <dl class="specs" id="specs"></dl>
+    <a class="cta" id="cta" target="_blank" rel="noopener" hidden></a>
+  </div>
+</dialog>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>const SB_URL_EMB = "__SB_URL__"; const SB_KEY_EMB = "__SB_KEY__";</script>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => '$' + Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const HANGER = '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7a2 2 0 1 1 2-2"/><path d="M12 7v1.5L3 15h18l-9-6.5"/></svg>';
+const availText = q => q <= 0 ? 'Agotado' : q === 1 ? '1 disponible, última pieza' : q + ' disponibles';
+let S = { name: 'Kutelle', whatsapp: '' }, products = [], allCats = [], current = 'all', loadedOnce = false;
+
+function header(updatedAt) {
+  const updated = updatedAt ? new Date(updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1>${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '');
+  document.title = 'Catálogo ' + (S.name || 'Kutelle');
+  $('#foot').innerHTML = `<b>${esc(S.name || 'Kutelle')}</b>` + esc(S.whatsapp ? 'Para apartar una pieza, escríbenos por WhatsApp desde su ficha.' : 'Gracias por elegirnos.');
+}
+function renderPills() {
+  $('#pills').innerHTML = [['all', 'Todo'], ...allCats.map(c => [c, c])].map(([v, l]) => `<button class="pill" data-c="${esc(v)}" aria-pressed="${current === v}">${esc(l)}</button>`).join('');
+}
+function card(p) {
+  const out = p.stock <= 0, img = (p.images || [])[0];
+  return `<button class="card${out ? ' out' : ''}" data-i="${p.i}" type="button">
+    <div class="ph">${img ? `<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy">` : `<div class="none">${HANGER}</div>`}
+      ${out ? '<span class="tag out">Agotado</span>' : p.stock === 1 ? '<span class="tag">Última pieza</span>' : `<span class="tag">${p.stock} disponibles</span>`}</div>
+    <div class="name">${esc(p.name || p.sku)}</div>
+    <div class="meta">${esc([p.color, p.size].filter(Boolean).join(', '))}</div>
+    <div class="price">${money(p.price)}</div></button>`;
+}
+const sortItems = a => a.slice().sort((x, y) => ((x.stock <= 0) - (y.stock <= 0)) || x.i - y.i);
+function renderMain() {
+  const list = current === 'all' ? allCats : [current];
+  const html = list.map(c => {
+    const items = sortItems(products.filter(p => (p.category || 'Otros') === c)); if (!items.length) return '';
+    const avail = items.filter(p => p.stock > 0).length;
+    return `<section><h2>${esc(c)}</h2><p class="count">${items.length} ${items.length === 1 ? 'pieza' : 'piezas'}${avail < items.length ? `, ${avail} disponibles` : ''}</p><div class="grid">${items.map(card).join('')}</div></section>`;
+  }).join('');
+  $('#main').innerHTML = html || '<p class="empty">Muy pronto verás aquí las piezas nuevas.</p>';
+}
+function apply(data) {
+  S = { name: data.store || 'Kutelle', whatsapp: data.whatsapp || '' };
+  products = (data.products || []).map((p, i) => ({ ...p, stock: Number(p.stock) || 0, i }));
+  const cats = (data.categories || []).filter(c => products.some(p => (p.category || 'Otros') === c));
+  const others = [...new Set(products.map(p => p.category || 'Otros'))].filter(c => !cats.includes(c));
+  allCats = [...cats, ...others];
+  if (current !== 'all' && !allCats.includes(current)) current = 'all';
+  header(data.updatedAt); renderPills(); renderMain();
+}
+async function load() {
+  const u = SB_URL_EMB, k = SB_KEY_EMB;
+  if (u.charAt(0) === '_' || !window.supabase) {
+    header(''); $('#main').innerHTML = '<p class="empty">Catálogo en preparación. Vuelve pronto.</p>'; return;
+  }
+  try {
+    const client = window.supabase.createClient(u, k, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data, error } = await client.rpc('catalog'); if (error) throw error;
+    loadedOnce = true; apply(data || {});
+  } catch {
+    if (!loadedOnce) { header(''); $('#main').innerHTML = '<div class="empty">No se pudo cargar el catálogo.<br><button type="button" id="retry">Intentar de nuevo</button></div>'; const r = $('#retry'); if (r) r.onclick = load; }
+  }
+}
+$('#pills').addEventListener('click', e => {
+  const b = e.target.closest('.pill'); if (!b) return;
+  current = b.dataset.c; renderPills(); renderMain();
+  const top = $('.nav').offsetTop - 2; if (window.scrollY > top) window.scrollTo({ top });
+});
+$('#main').addEventListener('click', e => { const b = e.target.closest('.card'); if (b) openItem(products[+b.dataset.i]); });
+function openItem(p) {
+  const ims = (p.images || []).filter(Boolean); const out = p.stock <= 0;
+  $('#gal').innerHTML = ims.length ? ims.map((s, k) => `<img src="${esc(s)}" alt="${esc(p.name)}, foto ${k + 1}">`).join('') : `<div class="none">${HANGER}</div>`;
+  $('#gal').scrollLeft = 0;
+  $('#dots').innerHTML = ims.length > 1 ? ims.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('') : '';
+  $('#dName').textContent = p.name || p.sku; $('#dPrice').textContent = money(p.price);
+  $('#specs').innerHTML = [['Disponibilidad', `<span class="avail${out ? ' out' : ''}">${availText(p.stock)}</span>`], ['Talla', esc(p.size || '—')], ['Color', esc(p.color || '—')], ['SKU', esc(p.sku)]].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  const cta = $('#cta');
+  if (S.whatsapp) {
+    cta.hidden = false;
+    const msg = `Hola, me interesa ${p.name || ''} ${p.color ? 'color ' + p.color : ''} (SKU ${p.sku}).`;
+    cta.href = 'https://wa.me/' + String(S.whatsapp).replace(/\D/g, '') + '?text=' + encodeURIComponent(msg);
+    cta.textContent = out ? 'Agotado' : 'Pedir por WhatsApp'; cta.setAttribute('aria-disabled', String(out));
+  } else cta.hidden = true;
+  $('#dlg').showModal();
+}
+$('#gal').addEventListener('scroll', () => { const g = $('#gal'), i = Math.round(g.scrollLeft / Math.max(1, g.clientWidth)); document.querySelectorAll('#dots i').forEach((d, k) => d.classList.toggle('on', k === i)); }, { passive: true });
+$('#close').onclick = () => $('#dlg').close();
+$('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
+setInterval(() => { if (document.visibilityState === 'visible' && !$('#dlg').open) load(); }, 60000);
+header(''); $('#main').innerHTML = '<p class="empty">Cargando catálogo…</p>';
+load();
+})();
+</script>
+</body>
+</html>
