@@ -450,7 +450,17 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <label class="lbl">Piezas</label>
     <div class="items" id="saleItems"></div>
     <div class="inline"><button type="button" class="btn" id="saleScan">Escanear pieza</button><select class="field" id="saleAdd" aria-label="Agregar por SKU"></select></div>
+    <label class="lbl" for="salePct">Descuento</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="chips" id="pctChips">
+        <button type="button" class="chip" data-p="">Sin descuento</button><button type="button" class="chip" data-p="10">10%</button><button type="button" class="chip" data-p="15">15%</button><button type="button" class="chip" data-p="20">20%</button><button type="button" class="chip" data-p="30">30%</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px"><input class="field num" id="salePct" type="number" min="0" max="100" step="0.5" inputmode="decimal" placeholder="Otro" style="width:90px;text-align:right" aria-label="Porcentaje de descuento"><b>%</b></div>
+    </div>
+    <p class="hint">Se aplica a todas las piezas. Si quieres, ajusta el descuento en pesos de una pieza en particular.</p>
     <div class="total"><span id="saleSub"></span><b class="num" id="saleTotal"></b></div>
+    <div class="kv num" id="saleCalc" style="margin-top:10px"></div>
+    <p class="hint" id="saleWarn" style="font-weight:600"></p>
     <div class="actions" id="saleExtra" hidden><button type="button" class="btn" id="saleShip">Registrar envío</button><button type="button" class="btn" id="saleRet">Registrar devolución</button></div>
     <div class="actions"><button type="button" class="btn danger" id="saleDel" hidden>Eliminar venta</button><button class="btn primary" type="submit" id="saleSave">Guardar venta</button></div>
   </form>
@@ -1282,7 +1292,7 @@ $('#fDelete').onclick = async () => {
 
 /* ---------------- Tickets (sale and purchase) ---------------- */
 const T = {
-  sale: { box: '#saleItems', items: [], editKey: null, fields: [['qty', 'Cantidad', 1], ['unitPrice', 'Precio', 0.01], ['discount', 'Descuento', 0.01]] },
+  sale: { box: '#saleItems', items: [], editKey: null, fields: [['qty', 'Cantidad', 1], ['unitPrice', 'Precio', 0.01], ['discount', 'Descuento $', 0.01]] },
   purchase: { box: '#purItems', items: [], editKey: null, fields: [['qty', 'Cantidad', 1], ['unitCost', 'Costo unitario', 0.01]] }
 };
 function skuOptions() { return '<option value="">Agregar por SKU…</option>' + D.products.map(p => `<option value="${esc(p.sku)}">${esc(p.sku)}: ${esc(titleOf(p))}${p.color ? ', ' + esc(p.color) : ''}</option>`).join(''); }
@@ -1305,9 +1315,27 @@ function availFor(sku) {
 function updateTotal(kind) {
   const t = T[kind];
   if (kind === 'sale') {
-    const tot = t.items.reduce((s, it) => s + num(it.qty) * num(it.unitPrice) - num(it.discount), 0);
+    const sub = t.items.reduce((s, it) => s + num(it.qty) * num(it.unitPrice), 0);
+    const disc = t.items.reduce((s, it) => s + num(it.discount), 0);
+    const tot = sub - disc;
+    const cost = t.items.reduce((s, it) => { const p = D.bySku[it.sku]; return s + num(it.qty) * (p ? num(p.cost) + num(p.packaging) : 0); }, 0);
+    const profit = tot - cost, margin = tot > 0 ? profit / tot : 0;
     const u = t.items.reduce((s, it) => s + num(it.qty), 0);
-    $('#saleSub').textContent = u ? `${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#saleTotal').textContent = money(tot);
+    $('#saleSub').textContent = u ? `Total a cobrar, ${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#saleTotal').textContent = money(tot);
+    const pctTxt = sub > 0 && disc > 0 ? ` (${Math.round(disc / sub * 1000) / 10}%)` : '';
+    $('#saleCalc').innerHTML = u ? [
+      ['Precio normal', money(sub)],
+      ['Descuento' + pctTxt, disc > 0 ? '-' + money(disc) : money(0)],
+      ['Costo de las piezas y empaque', money(cost)],
+      ['Tu ganancia', `<span class="${profit < 0 ? 'zero' : margin < 0.3 ? 'low' : 'ok'}">${money(profit)}${tot > 0 ? ' (' + Math.round(margin * 100) + '%)' : ''}</span>`, 1]
+    ].map(([l, v, st]) => `<div${st ? ' class="strong"' : ''}><span>${l}</span><span>${v}</span></div>`).join('') : '';
+    $('#saleCalc').hidden = !u;
+    const w = $('#saleWarn');
+    if (!u) w.textContent = '';
+    else if (profit < 0) { w.className = 'hint zero'; w.textContent = `Ojo: con este precio vendes por debajo de tu costo y pierdes ${money(-profit)}.`; }
+    else if (disc > 0 && margin < 0.3) { w.className = 'hint low'; w.textContent = 'Te queda menos del 30% de ganancia. Úsalo solo para piezas con detalle.'; }
+    else if (disc > 0) { w.className = 'hint ok'; w.textContent = `Descuento sano: aún te queda ${Math.round(margin * 100)}% de ganancia.`; }
+    else w.textContent = '';
   } else {
     const tot = t.items.reduce((s, it) => s + num(it.qty) * num(it.unitCost), 0);
     const u = t.items.reduce((s, it) => s + num(it.qty), 0);
@@ -1316,14 +1344,30 @@ function updateTotal(kind) {
 }
 ['sale', 'purchase'].forEach(kind => {
   const box = $(T[kind].box);
-  box.addEventListener('input', e => { const inp = e.target.closest('input[data-k]'); if (!inp) return; const i = +inp.closest('.it').dataset.i; T[kind].items[i][inp.dataset.k] = inp.value; updateTotal(kind); });
+  box.addEventListener('input', e => {
+    const inp = e.target.closest('input[data-k]'); if (!inp) return; const i = +inp.closest('.it').dataset.i; const it = T[kind].items[i];
+    it[inp.dataset.k] = inp.value;
+    if (kind === 'sale') {
+      const pct = salePct();
+      if (inp.dataset.k === 'discount') { $('#salePct').value = ''; syncPctChips(); }
+      else if (pct > 0) { it.discount = pctDisc(it, pct); const d = inp.closest('.it').querySelector('input[data-k="discount"]'); if (d) d.value = it.discount; }
+    }
+    updateTotal(kind);
+  });
   box.addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (!b) return; T[kind].items.splice(+b.dataset.rm, 1); renderItems(kind); });
 });
+const salePct = () => Math.min(100, Math.max(0, num($('#salePct').value)));
+const pctDisc = (it, pct) => pct > 0 ? Math.round(num(it.qty) * num(it.unitPrice) * pct) / 100 : '';
+function syncPctChips() { const v = $('#salePct').value; $$('#pctChips .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.p === v || (!v && c.dataset.p === '' )))); }
+function applySalePct() { const pct = salePct(); T.sale.items.forEach(it => { it.discount = pctDisc(it, pct); }); syncPctChips(); renderItems('sale'); }
+$('#pctChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; $('#salePct').value = c.dataset.p; applySalePct(); });
+$('#salePct').addEventListener('input', applySalePct);
 function addItem(kind, sku) {
   const p = D.bySku[sku]; if (!p) return false;
   const t = T[kind]; const ex = t.items.find(it => it.sku === sku);
   if (ex) ex.qty = num(ex.qty) + 1;
   else t.items.push(kind === 'sale' ? { sku, qty: 1, unitPrice: num(p.price), discount: '' } : { sku, qty: 1, unitCost: num(p.cost) });
+  if (kind === 'sale' && salePct() > 0) { const it = t.items.find(i => i.sku === sku); it.discount = pctDisc(it, salePct()); }
   if (kind === 'purchase' && !$('#purSupplier').value && p.supplier) $('#purSupplier').value = p.supplier;
   renderItems(kind); return true;
 }
@@ -1354,6 +1398,8 @@ function openSale(number, firstSku) {
   $('#saleChannel').innerHTML = opts(L.channels, tk ? tk.channel : lsGet('lastChannel', L.channels[0]), 'Sin canal');
   $('#salePay').innerHTML = opts(L.payments, tk ? tk.payment : lsGet('lastPay', L.payments[0]), 'Sin método');
   if (tk) t.items = tk.rows.map(r => ({ sku: r.sku, qty: num(r.qty), unitPrice: num(r.unitPrice), discount: num(r.discount) || '' }));
+  const pcts = tk ? [...new Set(tk.rows.map(r => r.discountPct || ''))] : [''];
+  $('#salePct').value = pcts.length === 1 && pcts[0] ? pcts[0] : ''; syncPctChips();
   $('#saleAdd').innerHTML = skuOptions();
   $('#saleExtra').hidden = !tk || !canWrite; $('#saleDel').hidden = !tk;
   renderItems('sale');
@@ -1379,7 +1425,7 @@ $('#saleForm').onsubmit = async e => {
     lsSet('lastChannel', header.channel); lsSet('lastPay', header.payment);
     if (t.editKey) for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === t.editKey) await store.del('sales', id);
     let k = 0;
-    for (const it of items) await store.set('sales', 'v_' + store.newId() + (k++), { ...header, sku: it.sku, qty: num(it.qty), unitPrice: num(it.unitPrice), discount: num(it.discount), createdAt: Date.now() });
+    for (const it of items) await store.set('sales', 'v_' + store.newId() + (k++), { ...header, sku: it.sku, qty: num(it.qty), unitPrice: num(it.unitPrice), discount: num(it.discount), discountPct: salePct() || null, createdAt: Date.now() });
     $('#dSale').close(); toast(t.editKey ? 'Venta actualizada' : 'Venta registrada');
   } catch { toast('No se pudo guardar la venta'); }
   finally { $('#saleSave').disabled = false; }
