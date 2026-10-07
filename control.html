@@ -353,6 +353,10 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div><label class="lbl" for="fSku">SKU</label><input class="field" id="fSku" maxlength="60" autocapitalize="characters"></div>
       <div><label class="lbl" for="fPrice">Precio de venta</label><input class="field num" id="fPrice" type="number" step="0.01" min="0" inputmode="decimal"></div>
     </div>
+    <div class="row2">
+      <div><label class="lbl" for="fSize">Talla</label><select class="field" id="fSize"></select></div>
+      <div><label class="lbl" for="fFit">¿Qué tallas abarca?</label><input class="field" id="fFit" maxlength="40" placeholder="Ej. 5-7 o CH a M"></div>
+    </div>
     <label class="lbl" for="fCode">Código de barras</label>
     <button class="photoScan" type="button" id="fScan">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13.5 8v8M17 8v8"/></svg>
@@ -377,11 +381,10 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <label class="lbl" for="fName">Nombre</label><input class="field" id="fName" maxlength="120">
       <div class="row2">
         <div><label class="lbl" for="fCat">Categoría</label><select class="field" id="fCat"></select></div>
-        <div><label class="lbl" for="fSize">Talla</label><select class="field" id="fSize"></select></div>
+        <div><label class="lbl" for="fColor">Color</label><input class="field" id="fColor" maxlength="40"></div>
       </div>
       <div class="row2">
-        <div><label class="lbl" for="fColor">Color</label><input class="field" id="fColor" maxlength="40"></div>
-        <div><label class="lbl" for="fSupplier">Proveedor</label><input class="field" id="fSupplier" maxlength="60" list="suppliersDL"></div>
+        <div style="grid-column:1/-1"><label class="lbl" for="fSupplier">Proveedor</label><input class="field" id="fSupplier" maxlength="60" list="suppliersDL"></div>
       </div>
       <div class="row2">
         <div><label class="lbl" for="fCost">Costo unitario</label><input class="field num" id="fCost" type="number" step="0.01" min="0" inputmode="decimal"></div>
@@ -917,7 +920,8 @@ const imagesOf = p => (p && p.images && p.images.length) ? p.images.filter(Boole
 const srcOf = im => !im ? PLACEHOLDER : im.url ? im.url : im.data ? im.data : (im.path && im.bucket === 'tickets') ? signedSrc(im.path) : PLACEHOLDER;
 const imgSrc = p => srcOf(imagesOf(p)[0]);
 const titleOf = p => p ? (p.name || (p.sku ? 'SKU ' + p.sku : 'Producto')) : 'Producto';
-const subOf = p => [p.sku, p.color, p.size && p.size !== 'Unitalla' ? p.size : ''].filter(Boolean).join(', ');
+const sizeText = p => p ? [p.size, p.fit ? (p.size ? '(abarca ' + p.fit + ')' : 'Abarca ' + p.fit) : ''].filter(Boolean).join(' ') : '';
+const subOf = p => [p.sku, p.color, (p.size && p.size !== 'Unitalla') || p.fit ? sizeText(p) : ''].filter(Boolean).join(', ');
 const level = p => p.stock <= 0 ? 'zero' : p.status === 'Reordenar' ? 'low' : 'ok';
 function nextSaleNo() { let m = 0; for (const r of Object.values(S.sales)) { const n = parseInt(r.number, 10); if (isFinite(n) && n > m) m = n; } return String(m + 1); }
 
@@ -1002,7 +1006,7 @@ function renderDetail() {
     $('#dDots').innerHTML = ims.length > 1 ? ims.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('') : '';
   }
   $('#dName').textContent = titleOf(p);
-  $('#dSub').textContent = [p.sku && 'SKU ' + p.sku, p.category, p.color, p.size, p.supplier].filter(Boolean).join(', ');
+  $('#dSub').textContent = [p.sku && 'SKU ' + p.sku, p.category, p.color, sizeText(p), p.supplier].filter(Boolean).join(', ');
   $('#dPrice').textContent = money(p.price);
   $('#dCost').textContent = num(p.cost) ? money(p.cost) : '—';
   $('#dMargin').textContent = num(p.price) ? Math.round((num(p.price) - num(p.cost) - num(p.packaging)) / num(p.price) * 100) + '%' : '—';
@@ -1119,6 +1123,7 @@ function openForm(id, code) {
   $('#fName').value = p?.name || '';
   $('#fCat').innerHTML = opts(L.categories, p?.category || '', 'Sin categoría');
   $('#fSize').innerHTML = opts(L.sizes, p ? (p.size || '') : 'Unitalla', 'Sin talla');
+  $('#fFit').value = p?.fit || '';
   $('#fColor').value = p?.color || '';
   $('#fSupplier').value = p ? (p.supplier || '') : (last?.supplier || '');
   $('#fCost').value = p ? (p.cost ?? '') : '';
@@ -1174,7 +1179,7 @@ $('#pForm').onsubmit = async e => {
     const asPurchase = isNew && $('#fQtyType').value === 'compra';
     const data = {
       ...prev, sku, price: Math.max(0, num(priceRaw)), barcode: code,
-      name: $('#fName').value.trim(), category: $('#fCat').value, size: $('#fSize').value, color: $('#fColor').value.trim(),
+      name: $('#fName').value.trim(), category: $('#fCat').value, size: $('#fSize').value, fit: $('#fFit').value.trim(), color: $('#fColor').value.trim(),
       supplier: $('#fSupplier').value.trim(), cost: Math.max(0, num($('#fCost').value)), packaging: Math.max(0, num($('#fPack').value)),
       minStock: Math.max(0, parseInt($('#fMin').value, 10) || 0), images,
       initialStock: isNew ? (asPurchase ? 0 : qty) : Math.max(0, parseInt($('#fInit').value, 10) || 0),
@@ -1883,7 +1888,7 @@ async function catalogPDF(btn) {
         if (out) { const pw = doc.getTextWidth(pr); doc.setDrawColor(C.cafe); doc.setLineWidth(1.2); doc.line(M, ty - 6, M + pw, ty - 6); }
         ty += 18;
         const avail = out ? 'Agotado' : p.stock === 1 ? '1 disponible, última pieza' : p.stock + ' disponibles';
-        [['Disponibilidad', avail], ['Talla', p.size || '—'], ['Color', p.color || '—'], ['SKU', p.sku]].forEach(([l, v]) => {
+        [['Disponibilidad', avail], ['Talla', sizeText(p) || '—'], ['Color', p.color || '—'], ['SKU', p.sku]].forEach(([l, v]) => {
           doc.setDrawColor(C.arena); doc.setLineWidth(0.6); doc.line(M, ty, W - M, ty);
           doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(C.muted); doc.text(l, M, ty + 16);
           doc.setFont('helvetica', 'bold'); doc.setTextColor(l === 'Disponibilidad' ? (out ? C.cafe : C.vino) : C.ink); doc.text(String(v), W - M, ty + 16, { align: 'right' });
