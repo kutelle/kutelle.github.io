@@ -92,7 +92,7 @@ textarea.field{resize:vertical;min-height:90px}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 /* nav */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1.5px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tabs div{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tabs div{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
 .tabs button{border:0;background:transparent;padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.72rem;font-weight:600;color:var(--muted);cursor:pointer}
 .tabs button[aria-current="page"]{color:var(--ink)}
 .tabs button[aria-current="page"] svg{background:var(--accent);color:var(--accent-ink);border-radius:8px}
@@ -177,6 +177,25 @@ tr.tot td{font-weight:800}
 #reader video{width:100%!important;height:auto!important;display:block}
 .scanmsg{min-height:1.5em;margin-top:10px;font-weight:600}
 .pick{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto;margin-top:8px}
+.fin-hero{background:var(--ink);color:var(--bg);border-radius:var(--radius);padding:18px}
+.fin-hero small{display:block;opacity:.75;font-size:.85rem}
+.fin-hero .big{font-size:2.2rem;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin:4px 0 8px}
+.fin-hero p{margin:6px 0 0;font-size:.9rem;opacity:.9}
+.fin-hero .btn{margin-top:12px;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.meter{height:10px;border-radius:99px;background:rgba(127,127,127,.35);overflow:hidden;margin:10px 0 4px}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.bucket{background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.bucket .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.bucket .top b{font-size:1rem}
+.bucket .top span{color:var(--muted);font-size:.85rem}
+.bucket .meter{background:var(--bg);height:8px}
+.bucket .meter i{background:var(--ok)}
+.bucket .meter i.over{background:var(--out)}
+.bucket .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:.82rem;color:var(--muted)}
+.bucket .nums b{display:block;color:var(--ink);font-size:.95rem}
+.bucket .why{font-size:.8rem;color:var(--muted);margin:2px 0 0}
+.pct{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin-top:8px}
+.pct input{text-align:right}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:10px;font-weight:600;max-width:calc(100% - 32px);transition:.2s;z-index:100}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .ro .w{display:none!important}
@@ -257,6 +276,21 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   </section>
 
   <!-- RESUMEN -->
+  <section id="s-fin" hidden>
+    <div class="fin-hero num" id="finStatus"></div>
+    <h3>Lo que puedes usar hoy</h3>
+    <div class="kv num" id="finAvail"></div>
+    <div class="bar w" style="margin-top:10px"><button class="btn primary" id="newWd" type="button">Registrar lo que tomé para mí</button></div>
+    <h3>Cómo se reparte tu dinero</h3>
+    <p class="hint" id="finModeHint" style="margin:-2px 2px 10px"></p>
+    <div id="finBuckets"></div>
+    <div class="actions w" style="margin-top:6px"><button class="btn" id="finCfgBtn" type="button">Ajustar mi plan</button></div>
+    <h3 id="finMonthT">Por mes</h3>
+    <div class="tablewrap num"><table id="finMonths"></table></div>
+    <h3>Lo que has tomado para ti</h3>
+    <div class="rows" id="wdList"></div>
+  </section>
+
   <section id="s-res" hidden>
     <div class="excel">
       <b>Catálogo para clientas</b>
@@ -309,6 +343,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   <button data-s="ven"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 016 0"/></svg>Ventas</button>
   <button data-s="com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2 11h11l2-8H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>Compras</button>
   <button data-s="gas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Gastos</button>
+  <button data-s="fin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>Finanzas</button>
   <button data-s="res"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resumen</button>
 </div></nav>
 
@@ -522,6 +557,44 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   </div>
 </dialog>
 
+<!-- Withdrawal -->
+<dialog id="dWd" aria-labelledby="wdTitle">
+  <div class="dhead"><h2 id="wdTitle">Lo que tomé para mí</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <form class="dbody" id="wdForm" autocomplete="off" novalidate>
+    <p class="hint" style="margin-top:0">Anota aquí el dinero del negocio que usas para ti: tu sueldo, un gusto, algo personal. Así sabes cuánto te queda disponible.</p>
+    <div class="row2">
+      <div><label class="lbl" for="wdAmount">Monto</label><input class="field num" id="wdAmount" type="number" step="0.01" min="0" inputmode="decimal"></div>
+      <div><label class="lbl" for="wdDate">Fecha</label><input class="field" type="date" id="wdDate"></div>
+    </div>
+    <label class="lbl" for="wdNote">Nota (opcional)</label><input class="field" id="wdNote" maxlength="120" placeholder="Ej. mi sueldo de octubre">
+    <div class="actions"><button type="button" class="btn danger" id="wdDel" hidden>Eliminar</button><button class="btn primary" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+
+<!-- Finance plan -->
+<dialog id="dFinCfg" aria-labelledby="fcTitle">
+  <div class="dhead"><h2 id="fcTitle">Mi plan de dinero</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <form class="dbody" id="finCfgForm" autocomplete="off" novalidate>
+    <label class="lbl" for="fcMode" style="margin-top:0">Etapa de tu negocio</label>
+    <select class="field" id="fcMode">
+      <option value="arranque">Arranque: reinvertir todo hasta recuperar mi inversión</option>
+      <option value="reparto">Crecimiento: repartir la ganancia y pagarme</option>
+    </select>
+    <p class="hint" id="fcModeHint"></p>
+    <label class="lbl">¿Cómo repartir la ganancia de cada venta?</label>
+    <p class="hint" style="margin-top:0">El costo de cada pieza vendida siempre se aparta para volver a comprarla. Esto reparte lo que sobra.</p>
+    <div class="pct"><label for="fcReinv">Reinversión para crecer (más mercancía)</label><input class="field num" id="fcReinv" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+    <div class="pct"><label for="fcGastos">Gastos del negocio (bolsas, publicidad, equipo)</label><input class="field num" id="fcGastos" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+    <div class="pct"><label for="fcTi">Para ti (tu sueldo)</label><input class="field num" id="fcTi" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+    <div class="pct"><label for="fcAhorro">Ahorro y emergencias</label><input class="field num" id="fcAhorro" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+    <p class="hint num" id="fcSum"></p>
+    <label class="lbl" for="fcStart">Contar desde</label>
+    <input class="field" type="date" id="fcStart">
+    <p class="hint">Déjalo vacío para contar desde tu primera venta; lo que compraste antes cuenta como tu inversión inicial. Al pasar a Crecimiento se pone la fecha de hoy, para empezar el reparto en limpio.</p>
+    <div class="actions"><button class="btn primary" type="submit">Guardar mi plan</button></div>
+  </form>
+</dialog>
+
 <!-- Lists -->
 <dialog id="dLists" aria-labelledby="lTitle">
   <div class="dhead"><h2 id="lTitle">Listas</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
@@ -625,8 +698,8 @@ const DEFAULT_LISTS = {
 };
 const LIST_LABELS = { categories: 'Categorías', sizes: 'Tallas', channels: 'Canales de venta', payments: 'Métodos de pago', carriers: 'Empresas de envío', shipStatus: 'Estado de envío', returnReasons: 'Motivo de devolución', returnStatus: 'Estado de devolución', expenseCats: 'Categoría de gasto' };
 const LIST_COLS = { categories: 'A', sizes: 'B', channels: 'C', payments: 'D', carriers: 'E', shipStatus: 'F', returnReasons: 'G', returnStatus: 'H', expenseCats: 'J' };
-const COLS = ['products', 'purchases', 'sales', 'shipments', 'returns', 'expenses', 'config'];
-const S = { products: {}, purchases: {}, sales: {}, shipments: {}, returns: {}, expenses: {}, config: {} };
+const COLS = ['products', 'purchases', 'sales', 'shipments', 'returns', 'expenses', 'withdrawals', 'config'];
+const S = { products: {}, purchases: {}, sales: {}, shipments: {}, returns: {}, expenses: {}, withdrawals: {}, config: {} };
 let D = { products: [], bySku: {}, tickets: [], ptickets: [] };
 let store = null, canWrite = true, downloads = null;
 let section = 'inv', venTab = 'sales', invFilter = 'all', shipFilter = 'all';
@@ -869,7 +942,7 @@ $('#importInput').onchange = async e => {
       g.receipt = rc; delete g.receiptFile;
       rows.push({ col: 'expenses', id, data: g, updated_at: now });
     }
-    for (const col of ['purchases', 'sales', 'shipments', 'returns', 'config'])
+    for (const col of ['purchases', 'sales', 'shipments', 'returns', 'withdrawals', 'config'])
       for (const [id, d] of Object.entries(data[col] || {})) rows.push({ col, id, data: d, updated_at: now });
     btn.textContent = 'Guardando registros…';
     await store.bulk(rows);
@@ -934,6 +1007,7 @@ function renderAll() {
   if (section === 'com') renderPurchases();
   if (section === 'gas') renderExpenses();
   if (section === 'res') renderSummary();
+  if (section === 'fin') renderFinance();
   if ($('#dDetail').open) renderDetail();
 }
 function fillDatalists() {
@@ -945,12 +1019,12 @@ function fillDatalists() {
 const opts = (arr, sel, blank) => (blank ? `<option value="">${esc(blank)}</option>` : '') + arr.map(v => `<option${String(v) === String(sel) ? ' selected' : ''}>${esc(v)}</option>`).join('') + (sel && !arr.includes(sel) ? `<option selected>${esc(sel)}</option>` : '');
 
 /* ---------------- Navigation ---------------- */
-const TITLES = { inv: 'Inventario', ven: 'Ventas', com: 'Compras', gas: 'Gastos', res: 'Resumen' };
+const TITLES = { inv: 'Inventario', ven: 'Ventas', com: 'Compras', gas: 'Gastos', fin: 'Finanzas', res: 'Resumen' };
 $$('.tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.s)));
 function go(s) {
   section = s;
   $$('.tabs button').forEach(b => { if (b.dataset.s === s) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  ['inv', 'ven', 'com', 'gas', 'res'].forEach(k => $('#s-' + k).hidden = k !== s);
+  ['inv', 'ven', 'com', 'gas', 'fin', 'res'].forEach(k => $('#s-' + k).hidden = k !== s);
   $('#secTitle').textContent = TITLES[s];
   window.scrollTo(0, 0); renderAll();
 }
@@ -1714,6 +1788,151 @@ async function exportExcel() {
 }
 $('#xlsBtn').onclick = exportExcel;
 
+/* ---------------- Finances ---------------- */
+const FIN_DEFAULT = { mode: 'arranque', split: { reinv: 50, gastos: 20, ti: 20, ahorro: 10 }, start: '' };
+function finCfg() {
+  const f = S.config.finance || {};
+  return { mode: f.mode || FIN_DEFAULT.mode, split: { ...FIN_DEFAULT.split, ...(f.split || {}) }, start: f.start || '' };
+}
+function computeFinance() {
+  const F = finCfg();
+  const sum = (a, f) => a.reduce((t, x) => t + f(x), 0);
+  const costOf = sku => { const p = D.bySku[sku]; return p ? num(p.cost) + num(p.packaging) : 0; };
+  const rev = r => num(r.qty) * num(r.unitPrice) - num(r.discount);
+  const cogs = r => num(r.qty) * costOf(r.sku);
+  const back = r => r.back === 'Sí' ? num(r.qty) * num(D.bySku[r.sku]?.cost) : 0;
+  const pur = r => num(r.qty) * num(r.unitCost);
+  const V = Object.values(S.sales), R = Object.values(S.returns), P = Object.values(S.purchases), G = Object.values(S.expenses), E = Object.values(S.shipments), W = Object.values(S.withdrawals);
+  // Whole history, cash view: what went in vs what came out
+  const entradas = sum(V, rev) - sum(R, r => num(r.refund)) + sum(E, e => num(e.charged));
+  const salidas = sum(P, pur) + sum(G, g => num(g.amount)) + sum(E, e => num(e.cost));
+  const retiros = sum(W, w => num(w.amount));
+  const balance = entradas - salidas;
+  const invCost = sum(D.products, p => Math.max(0, p.stock) * num(p.cost));
+  const invPrice = sum(D.products, p => Math.max(0, p.stock) * num(p.price));
+  // Pace: last 60 days (or since first sale) of profit after expenses
+  const dates = V.map(r => r.date).filter(Boolean).sort();
+  let pace = null;
+  if (dates.length) {
+    const now = new Date(); const d60 = new Date(now); d60.setDate(now.getDate() - 60);
+    const d60s = d60.toISOString().slice(0, 10); const from = dates[0] > d60s ? dates[0] : d60s;
+    const days = Math.max(14, Math.round((now - new Date(from + 'T00:00:00')) / 864e5) + 1);
+    const inR = d => String(d) >= from;
+    const gp = sum(V.filter(r => inR(r.date)), r => rev(r) - cogs(r)) - sum(R.filter(r => inR(r.date)), r => num(r.refund) - back(r));
+    const ex = sum(G.filter(g => inR(g.date)), g => num(g.amount)) + sum(E.filter(e => inR(e.date)), e => num(e.cost) - num(e.charged));
+    pace = (gp - ex) / days * 30;
+  }
+  // Buckets since plan start
+  const firstSale = V.map(r => r.date).filter(Boolean).sort()[0] || '';
+  const startEff = F.start || firstSale || today();
+  const inS = d => String(d) >= startEff;
+  const Vs = V.filter(r => inS(r.date)), Rs = R.filter(r => inS(r.date));
+  const reposicion = sum(Vs, cogs) - sum(Rs, back);
+  const ganancia = sum(Vs, r => rev(r) - cogs(r)) - sum(Rs, r => num(r.refund) - back(r));
+  const sp = F.split; const tot = Math.max(1, sp.reinv + sp.gastos + sp.ti + sp.ahorro);
+  const pctUse = F.mode === 'arranque' ? { reinv: (sp.reinv + sp.ti + sp.ahorro) / tot, gastos: sp.gastos / tot, ti: 0, ahorro: 0 } : { reinv: sp.reinv / tot, gastos: sp.gastos / tot, ti: sp.ti / tot, ahorro: sp.ahorro / tot };
+  const g0 = Math.max(0, ganancia);
+  const buckets = [
+    { key: 'merc', name: 'Mercancía', why: 'Para volver a surtir lo vendido y comprar más piezas.', pct: Math.round(pctUse.reinv * 100), assigned: reposicion + g0 * pctUse.reinv, used: sum(P.filter(r => inS(r.date)), pur), usedLbl: 'Compras' },
+    { key: 'gastos', name: 'Gastos del negocio', why: 'Bolsas, etiquetas, publicidad, equipo y envíos.', pct: Math.round(pctUse.gastos * 100), assigned: g0 * pctUse.gastos, used: sum(G.filter(g => inS(g.date)), g => num(g.amount)) + sum(E.filter(e => inS(e.date)), e => num(e.cost) - num(e.charged)), usedLbl: 'Gastado' },
+    { key: 'ti', name: 'Para ti', why: F.mode === 'arranque' ? 'En arranque todavía no te pagas: todo se reinvierte.' : 'Tu sueldo. Tómalo sin culpa, ya está calculado.', pct: Math.round(pctUse.ti * 100), assigned: g0 * pctUse.ti, used: sum(W.filter(w => inS(w.date)), w => num(w.amount)), usedLbl: 'Tomado' },
+    { key: 'ahorro', name: 'Ahorro y emergencias', why: 'Para un mes flojo, una oportunidad o un imprevisto. No se toca.', pct: Math.round(pctUse.ahorro * 100), assigned: g0 * pctUse.ahorro, used: 0, usedLbl: 'Usado' }
+  ];
+  buckets.forEach(b => b.avail = b.assigned - b.used);
+  // Months of selected year
+  const y = year();
+  const months = MONTHS.map((name, i) => {
+    const m = i + 1, inM = d => inMonth(d, y, m);
+    const v = sum(V.filter(r => inM(r.date)), rev) - sum(R.filter(r => inM(r.date)), r => num(r.refund));
+    const gp = sum(V.filter(r => inM(r.date)), r => rev(r) - cogs(r)) - sum(R.filter(r => inM(r.date)), r => num(r.refund) - back(r));
+    const c = sum(P.filter(r => inM(r.date)), pur);
+    const g = sum(G.filter(r => inM(r.date)), r => num(r.amount)) + sum(E.filter(e => inM(e.date)), e => num(e.cost) - num(e.charged));
+    const w = sum(W.filter(r => inM(r.date)), r => num(r.amount));
+    return { name, v, gp, c, g, w, flujo: v - c - g };
+  });
+  return { F, startEff, autoStart: !F.start, entradas, salidas, retiros, balance, invCost, invPrice, pace, reposicion, ganancia, buckets, months, any: V.length + P.length + G.length > 0 };
+}
+function renderFinance() {
+  const f = computeFinance();
+  const st = $('#finStatus');
+  if (!f.any) {
+    st.innerHTML = `<small>¿Ya tienes ganancias?</small><div class="big">Aún sin datos</div><p>Registra tus compras, ventas y gastos y aquí verás cuándo recuperas tu inversión.</p>`;
+  } else if (f.balance < 0) {
+    const pct = f.salidas > 0 ? Math.min(100, Math.round(f.entradas / f.salidas * 100)) : 0;
+    const falta = -f.balance;
+    let est = '';
+    if (f.pace && f.pace > 0) { const m = Math.ceil(falta / f.pace); est = `A tu ritmo de los últimos meses (${money(f.pace)} libres al mes), la recuperarías en unos <b>${m} ${m === 1 ? 'mes' : 'meses'}</b>.`; }
+    else if (f.pace !== null) est = 'Por ahora tus gastos superan tu ganancia; vender más o gastar menos acelera la recuperación.';
+    st.innerHTML = `<small>Recuperando tu inversión</small><div class="big">Te faltan ${money(falta)}</div>
+      <div class="meter" role="img" aria-label="${pct}% recuperado"><i style="width:${pct}%"></i></div>
+      <p>Llevas el <b>${pct}%</b>. Has metido ${money(f.salidas)} al negocio y han entrado ${money(f.entradas)}.</p>
+      <p>Además tienes ${money(f.invCost)} en mercancía a costo; vendida a su precio serían ${money(f.invPrice)}.</p>${est ? `<p>${est}</p>` : ''}`;
+  } else {
+    st.innerHTML = `<small>¿Ya tienes ganancias?</small><div class="big">¡Sí! ${money(f.balance)}</div>
+      <div class="meter"><i style="width:100%"></i></div>
+      <p>Ya recuperaste todo lo que metiste al negocio: entraron ${money(f.entradas)} y salieron ${money(f.salidas)}. Desde aquí, lo que sobra es ganancia.</p>
+      ${f.F.mode === 'arranque' && canWrite ? '<button class="btn" type="button" id="toReparto">Pasar a Crecimiento y empezar a pagarme</button>' : ''}`;
+    const b = $('#toReparto'); if (b) b.onclick = () => saveFin({ ...f.F, mode: 'reparto', start: today() }, 'Listo: desde hoy se reparte tu ganancia');
+  }
+  const B = Object.fromEntries(f.buckets.map(b => [b.key, b]));
+  const show = v => v < 0 ? `<span class="zero">${money(v)}</span>` : money(v);
+  $('#finAvail').innerHTML = [['Para comprar mercancía', B.merc.avail], ['Para gastos del negocio', B.gastos.avail], ['Para ti', B.ti.avail], ['Ahorro guardado', B.ahorro.assigned]]
+    .map(([l, v]) => `<div><span>${l}</span><span>${show(v)}</span></div>`).join('');
+  $('#finModeHint').textContent = (f.F.mode === 'arranque' ? 'Etapa de arranque: toda la ganancia se reinvierte hasta que recuperes tu inversión.' : 'Etapa de crecimiento: tu ganancia se reparte según tu plan.') +
+    ` Contando desde ${f.autoStart ? 'tu primera venta, el ' : 'el '}${fmtDate(f.startEff)} (lo anterior es tu inversión inicial): ganancia de ${money(f.ganancia)} y ${money(f.reposicion)} apartados para resurtir.`;
+  $('#finBuckets').innerHTML = f.buckets.filter(b => b.key !== 'ti' || f.F.mode === 'reparto' || b.used > 0).map(b => {
+    const p = b.assigned > 0 ? Math.min(100, Math.round(b.used / b.assigned * 100)) : (b.used > 0 ? 100 : 0);
+    return `<div class="bucket num"><div class="top"><b>${b.name}</b><span>${b.key === 'merc' ? 'resurtir + ' : ''}${b.pct}% de la ganancia</span></div>
+      <p class="why">${b.why}</p>
+      ${b.key === 'ahorro' ? '' : `<div class="meter"><i class="${b.used > b.assigned ? 'over' : ''}" style="width:${p}%"></i></div>`}
+      <div class="nums"><div>Apartado<b>${money(b.assigned)}</b></div>${b.key === 'ahorro' ? '<div></div>' : `<div>${b.usedLbl}<b>${money(b.used)}</b></div>`}<div>Disponible<b>${show(b.avail)}</b></div></div></div>`;
+  }).join('');
+  $('#finMonthT').textContent = 'Por mes en ' + year();
+  const t = k => f.months.reduce((s, m) => s + m[k], 0);
+  $('#finMonths').innerHTML = `<tr><th>Mes</th><th>Ventas</th><th>Ganancia</th><th>Compras</th><th>Gastos</th><th>Para ti</th><th>Flujo</th></tr>` +
+    f.months.map(m => `<tr><td>${m.name}</td><td>${money(m.v)}</td><td>${money(m.gp)}</td><td>${money(m.c)}</td><td>${money(m.g)}</td><td>${money(m.w)}</td><td>${m.flujo < 0 ? `<span class="zero">${money(m.flujo)}</span>` : money(m.flujo)}</td></tr>`).join('') +
+    `<tr class="tot"><td>Total</td><td>${money(t('v'))}</td><td>${money(t('gp'))}</td><td>${money(t('c'))}</td><td>${money(t('g'))}</td><td>${money(t('w'))}</td><td>${money(t('flujo'))}</td></tr>`;
+  const rows = Object.entries(S.withdrawals).sort((a, b) => String(b[1].date).localeCompare(String(a[1].date)));
+  $('#wdList').innerHTML = rows.length ? rows.map(([id, w]) => `<button class="row" type="button" data-id="${esc(id)}"><div class="l"><b>${esc(w.note || 'Para mí')}</b><small>${fmtDate(w.date)}</small></div><div class="r"><b class="num">${money(w.amount)}</b></div></button>`).join('')
+    : `<div class="empty">Aún no has tomado dinero para ti${f.F.mode === 'arranque' ? '. En arranque, lo ideal es reinvertir todo.' : '.'}</div>`;
+}
+async function saveFin(cfg, msg) {
+  try { await store.set('config', 'finance', cfg); S.config.finance = cfg; renderAll(); toast(msg || 'Plan guardado'); } catch { toast('No se pudo guardar tu plan'); }
+}
+let wdEdit = null;
+function openWd(id) {
+  wdEdit = id; const w = id ? S.withdrawals[id] : null;
+  $('#wdAmount').value = w ? (w.amount ?? '') : ''; $('#wdDate').value = w ? w.date : today(); $('#wdNote').value = w?.note || '';
+  $('#wdDel').hidden = !w; $('#dWd').showModal();
+}
+$('#newWd').onclick = () => openWd(null);
+$('#wdList').addEventListener('click', e => { const b = e.target.closest('.row'); if (b && canWrite) openWd(b.dataset.id); });
+$('#wdForm').onsubmit = async e => {
+  e.preventDefault();
+  if ($('#wdAmount').value === '') { toast('Escribe el monto'); return; }
+  const data = { amount: num($('#wdAmount').value), date: $('#wdDate').value || today(), note: $('#wdNote').value.trim(), createdAt: wdEdit ? (S.withdrawals[wdEdit]?.createdAt || Date.now()) : Date.now() };
+  try { await store.set('withdrawals', wdEdit || 'w_' + store.newId(), data); $('#dWd').close(); toast('Guardado'); } catch { toast('No se pudo guardar'); }
+};
+$('#wdDel').onclick = async () => { if (!wdEdit || !confirm('¿Eliminar este registro?')) return; try { await store.del('withdrawals', wdEdit); $('#dWd').close(); } catch { toast('No se pudo eliminar'); } };
+function fcUpdate() {
+  const v = ['fcReinv', 'fcGastos', 'fcTi', 'fcAhorro'].reduce((s, id) => s + (parseInt($('#' + id).value, 10) || 0), 0);
+  $('#fcSum').innerHTML = v === 100 ? 'Suma: 100% ✓' : `<span class="zero">Suma: ${v}%. Debe sumar 100%.</span>`;
+  $('#fcModeHint').textContent = $('#fcMode').value === 'arranque' ? 'Mientras recuperas tu inversión, lo de "Para ti" y "Ahorro" también se reinvierte. Los gastos del negocio sí se apartan.' : 'Cada venta aparta tu sueldo, tu ahorro, tus gastos y tu reinversión según estos porcentajes.';
+}
+['fcReinv', 'fcGastos', 'fcTi', 'fcAhorro'].forEach(id => $('#' + id).addEventListener('input', fcUpdate));
+$('#fcMode').onchange = () => { if ($('#fcMode').value === 'reparto' && finCfg().mode === 'arranque' && !$('#fcStart').value) $('#fcStart').value = today(); fcUpdate(); };
+$('#finCfgBtn').onclick = () => {
+  const F = finCfg();
+  $('#fcMode').value = F.mode; $('#fcReinv').value = F.split.reinv; $('#fcGastos').value = F.split.gastos; $('#fcTi').value = F.split.ti; $('#fcAhorro').value = F.split.ahorro; $('#fcStart').value = F.start;
+  fcUpdate(); $('#dFinCfg').showModal();
+};
+$('#finCfgForm').onsubmit = e => {
+  e.preventDefault();
+  const sp = { reinv: parseInt($('#fcReinv').value, 10) || 0, gastos: parseInt($('#fcGastos').value, 10) || 0, ti: parseInt($('#fcTi').value, 10) || 0, ahorro: parseInt($('#fcAhorro').value, 10) || 0 };
+  if (sp.reinv + sp.gastos + sp.ti + sp.ahorro !== 100) { toast('Los porcentajes deben sumar 100%'); return; }
+  saveFin({ mode: $('#fcMode').value, split: sp, start: $('#fcStart').value }).then(() => $('#dFinCfg').close());
+};
+
 /* ---------------- Full backup ---------------- */
 async function blobOf(im) {
   if (!im) return null;
@@ -1728,7 +1947,7 @@ async function fullBackup() {
   if (!downloads) { toast('La descarga funciona desde la página publicada'); return; }
   const btn = $('#bakBtn'); btn.disabled = true;
   try {
-    const data = JSON.parse(JSON.stringify({ products: S.products, purchases: S.purchases, sales: S.sales, shipments: S.shipments, returns: S.returns, expenses: S.expenses, config: S.config }));
+    const data = JSON.parse(JSON.stringify({ products: S.products, purchases: S.purchases, sales: S.sales, shipments: S.shipments, returns: S.returns, expenses: S.expenses, withdrawals: S.withdrawals, config: S.config }));
     const files = []; // {path, blob}
     const prods = Object.entries(data.products); let i = 0;
     for (const [, p] of prods) {
