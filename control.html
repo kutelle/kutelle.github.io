@@ -66,7 +66,7 @@ textarea.field{resize:vertical;min-height:90px}
 .stats{font-size:.88rem;color:var(--muted);margin:8px 2px 12px}
 .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
 .item{display:flex;gap:12px;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);padding:10px;cursor:pointer;text-align:left;width:100%}
-.thumb{width:64px;height:64px;border-radius:10px;object-fit:cover;background:var(--bg);flex:none}
+.thumb{width:64px;height:64px;border-radius:10px;object-fit:contain;background:var(--bg);flex:none}
 .thumb.sm{width:46px;height:46px;border-radius:8px}
 .item .meta{flex:1;min-width:0}
 .item .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -138,7 +138,7 @@ details.more{margin-top:16px;border:1.5px solid var(--line);border-radius:12px;p
 details.more summary{cursor:pointer;font-weight:700;padding:8px 0}
 .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .slot{position:relative;aspect-ratio:1;border:1.5px dashed var(--line);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;background:var(--bg)}
-.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:var(--bg)}
 .slot img:not([src]){display:none}
 .slot span{font-size:.85rem;font-weight:600;color:var(--muted)}
 .slot.filled{border-style:solid}
@@ -2057,7 +2057,8 @@ async function photoJpeg(im, w, h, gray) {
   try {
     const img = await loadImg(srcOf(im));
     const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
-    const sc = Math.max(w / img.naturalWidth, h / img.naturalHeight); const dw = img.naturalWidth * sc, dh = img.naturalHeight * sc;
+    x.fillStyle = '#F2E7E2'; x.fillRect(0, 0, w, h);
+    const sc = Math.min(w / img.naturalWidth, h / img.naturalHeight); const dw = img.naturalWidth * sc, dh = img.naturalHeight * sc;
     x.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
     if (gray) { const d = x.getImageData(0, 0, w, h), a = d.data; for (let i = 0; i < a.length; i += 4) { const v = (a[i] * .3 + a[i + 1] * .59 + a[i + 2] * .11) * .7 + 235 * .3; a[i] = a[i + 1] = a[i + 2] = v; } x.putImageData(d, 0, 0); }
     return c.toDataURL('image/jpeg', 0.8);
