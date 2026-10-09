@@ -84,6 +84,33 @@ dialog::backdrop{background:rgba(53,23,21,.6)}
 .avail.out{color:var(--sold)}
 .cta{display:block;width:100%;margin-top:18px;text-align:center;text-decoration:none;background:var(--mauve);color:#fff;border-radius:999px;padding:14px;font-weight:600}
 .cta[aria-disabled="true"]{background:var(--line);color:var(--muted);pointer-events:none}
+.cta.alt{background:transparent;color:var(--mauve);border:1.5px solid var(--mauve);margin-top:10px}
+.cta.alt[aria-disabled="true"]{border-color:var(--line);color:var(--muted)}
+button.cta{border:0;font:inherit;font-weight:600;cursor:pointer}
+button.cta.alt{border:1.5px solid var(--mauve)}
+button.cta:disabled{background:var(--line);color:var(--muted);cursor:default;border-color:var(--line)}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,rgba(235,226,217,.98) 70%,rgba(235,226,217,0))}
+.bar button{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:560px;margin:0 auto;border:0;background:var(--mauve);color:#fff;border-radius:999px;padding:14px 22px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(53,23,21,.3)}
+.bar b{font-variant-numeric:tabular-nums}
+.wrap{padding-bottom:96px}
+.lbody{padding:22px 20px 24px}
+.lbody h3{font-family:var(--serif);font-weight:400;font-style:italic;font-size:1.8rem;margin:0 0 2px;line-height:1.1}
+.lbody .sub{color:var(--muted);font-size:.88rem;margin:0 0 14px}
+.li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:12px 0;border-top:1px solid var(--line)}
+.li .n{font-size:.95rem;line-height:1.3}
+.li .m{color:var(--muted);font-size:.82rem;grid-column:1}
+.li .p{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;grid-row:1;grid-column:2}
+.li .ctl{grid-column:1/3;display:flex;align-items:center;gap:8px;margin-top:6px}
+.qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px}
+.qty button{width:34px;height:34px;border:0;background:transparent;font-size:1.2rem;cursor:pointer;line-height:1}
+.qty button:disabled{opacity:.3;cursor:default}
+.qty span{min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
+.rm{margin-left:auto;border:0;background:transparent;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:.85rem;padding:6px}
+.tot{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--ink);margin-top:4px;padding-top:14px;font-family:var(--serif);font-size:1.5rem}
+.tot b{font-family:var(--sans);font-variant-numeric:tabular-nums}
+.hint{color:var(--muted);font-size:.84rem;margin:12px 0 0;text-align:center}
+.slip{width:100%;border-radius:4px;border:1px solid var(--line);margin-top:12px}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:.9rem;z-index:20;pointer-events:none}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -101,7 +128,32 @@ dialog::backdrop{background:rgba(53,23,21,.6)}
     <h3 class="dname" id="dName"></h3>
     <div class="dprice" id="dPrice"></div>
     <dl class="specs" id="specs"></dl>
-    <a class="cta" id="cta" target="_blank" rel="noopener" hidden></a>
+    <button class="cta" id="add" type="button">Agregar a mi lista</button>
+    <a class="cta alt" id="cta" target="_blank" rel="noopener" hidden></a>
+  </div>
+</dialog>
+<div class="bar" id="bar" hidden><button type="button" id="openList"><span id="barN"></span><b id="barT"></b></button></div>
+<dialog id="ldlg" aria-labelledby="lTitle">
+  <div class="dtop"><button class="close" id="lclose" aria-label="Cerrar">×</button></div>
+  <div class="lbody">
+    <div id="lview">
+      <h3 id="lTitle">Mi lista</h3>
+      <p class="sub">Revisa tus piezas, genera la imagen y envíanosla para apartarlas.</p>
+      <div id="items"></div>
+      <div class="tot"><span>Total</span><b id="lTot"></b></div>
+      <button class="cta" id="gen" type="button">Generar imagen de mi lista</button>
+      <button class="cta alt" id="clear" type="button">Vaciar lista</button>
+      <p class="hint">Sujeta a disponibilidad. La pieza se aparta hasta confirmar tu pedido.</p>
+    </div>
+    <div id="rview" hidden>
+      <h3>Tu lista está lista</h3>
+      <p class="sub">Envíanos esta imagen para preparar tu pedido.</p>
+      <img class="slip" id="slip" alt="Lista de pedido">
+      <button class="cta" id="share" type="button">Compartir o guardar imagen</button>
+      <a class="cta alt" id="wa" target="_blank" rel="noopener" hidden>Abrir WhatsApp</a>
+      <button class="cta alt" id="back" type="button">Volver a mi lista</button>
+      <p class="hint" id="rhint"></p>
+    </div>
   </div>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
@@ -110,7 +162,7 @@ dialog::backdrop{background:rgba(53,23,21,.6)}
 (() => {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const money = n => '$' + Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const money = n => { n = Number(n || 0); const d = Math.round(n * 100) % 100 ? 2 : 0; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: 2 }); };
 const HANGER = '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7a2 2 0 1 1 2-2"/><path d="M12 7v1.5L3 15h18l-9-6.5"/></svg>';
 const sizeText = p => [p.size, p.fit ? (p.size ? '(abarca ' + p.fit + ')' : 'Abarca ' + p.fit) : ''].filter(Boolean).join(' ');
 const availText = q => q <= 0 ? 'Agotado' : q === 1 ? '1 disponible, última pieza' : q + ' disponibles';
@@ -151,7 +203,7 @@ function apply(data) {
   const others = [...new Set(products.map(p => p.category || 'Otros'))].filter(c => !cats.includes(c));
   allCats = [...cats, ...others];
   if (current !== 'all' && !allCats.includes(current)) current = 'all';
-  header(data.updatedAt); renderPills(); renderMain();
+  header(data.updatedAt); renderPills(); renderMain(); reconcile();
 }
 async function load() {
   const u = SB_URL_EMB, k = SB_KEY_EMB;
@@ -179,6 +231,7 @@ function openItem(p) {
   $('#dots').innerHTML = ims.length > 1 ? ims.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('') : '';
   $('#dName').textContent = p.name || p.sku; $('#dPrice').textContent = money(p.price);
   $('#specs').innerHTML = [['Disponibilidad', `<span class="avail${out ? ' out' : ''}">${availText(p.stock)}</span>`], ['Talla', esc(sizeText(p) || '—')], ['Color', esc(p.color || '—')], ['SKU', esc(p.sku)]].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  curP = p; syncAdd();
   const cta = $('#cta');
   if (S.whatsapp) {
     cta.hidden = false;
@@ -188,6 +241,165 @@ function openItem(p) {
   } else cta.hidden = true;
   $('#dlg').showModal();
 }
+/* ---------- Mi lista (pedido) ---------- */
+const LKEY = 'kutelle_lista';
+let cart = [], curP = null, slipBlob = null, slipFolio = '';
+const keyOf = p => String(p.sku ?? p.name ?? '');
+const findP = k => products.find(p => keyOf(p) === k);
+const qtyOf = k => (cart.find(c => c.k === k) || {}).q || 0;
+try { const raw = JSON.parse(localStorage.getItem(LKEY) || '[]'); if (Array.isArray(raw)) cart = raw.filter(c => c && c.k && c.q > 0).map(c => ({ k: String(c.k), q: Math.floor(c.q) })); } catch {}
+const saveCart = () => { try { localStorage.setItem(LKEY, JSON.stringify(cart)); } catch {} };
+function toast(t) {
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; (document.querySelector('dialog[open]') || document.body).appendChild(el);
+  setTimeout(() => el.remove(), 1800);
+}
+function reconcile() {
+  // Quita piezas agotadas o que ya no existen y ajusta cantidades al inventario actual
+  if (!products.length) return;
+  const before = JSON.stringify(cart);
+  cart = cart.map(c => { const p = findP(c.k); return p ? { k: c.k, q: Math.min(c.q, p.stock) } : null; }).filter(c => c && c.q > 0);
+  if (JSON.stringify(cart) !== before) { saveCart(); if (before !== '[]') toast('Tu lista se actualizó por disponibilidad'); }
+  renderBar(); if ($('#ldlg').open) renderList(); if ($('#dlg').open) syncAdd();
+}
+const cartLines = () => cart.map(c => ({ p: findP(c.k), q: c.q })).filter(l => l.p);
+const cartTotal = () => cartLines().reduce((s, l) => s + l.q * Number(l.p.price || 0), 0);
+const cartCount = () => cartLines().reduce((s, l) => s + l.q, 0);
+function renderBar() {
+  const n = cartCount();
+  $('#bar').hidden = n === 0;
+  $('#barN').textContent = 'Mi lista (' + n + (n === 1 ? ' pieza)' : ' piezas)');
+  $('#barT').textContent = money(cartTotal());
+}
+function syncAdd() {
+  const b = $('#add'); if (!curP) return;
+  const q = qtyOf(keyOf(curP)), out = curP.stock <= 0;
+  b.disabled = out || q >= curP.stock;
+  b.textContent = out ? 'Agotado' : q >= curP.stock ? 'Ya está en tu lista' + (curP.stock > 1 ? ' (máximo disponible)' : '') : q > 0 ? 'Agregar otra (' + q + ' en tu lista)' : 'Agregar a mi lista';
+}
+function setQty(k, q) {
+  const p = findP(k); if (!p) return;
+  q = Math.max(0, Math.min(q, p.stock));
+  cart = cart.filter(c => c.k !== k); if (q > 0) cart.push({ k, q });
+  saveCart(); renderBar(); syncAdd(); if ($('#ldlg').open) renderList();
+}
+$('#add').onclick = () => { if (!curP) return; setQty(keyOf(curP), qtyOf(keyOf(curP)) + 1); toast('Agregada a tu lista'); };
+function renderList() {
+  const ls = cartLines();
+  if (!ls.length) { $('#ldlg').close(); return; }
+  $('#items').innerHTML = ls.map(({ p, q }) => `<div class="li" data-k="${esc(keyOf(p))}">
+    <div class="n">${esc(p.name || p.sku)}</div><div class="p">${money(q * Number(p.price || 0))}</div>
+    <div class="m">${esc([p.color, sizeText(p), 'SKU ' + p.sku].filter(Boolean).join(' · '))}</div>
+    <div class="ctl"><div class="qty"><button type="button" data-a="-" aria-label="Quitar una">−</button><span>${q}</span><button type="button" data-a="+" aria-label="Agregar una"${q >= p.stock ? ' disabled' : ''}>+</button></div>
+    <span class="meta">${money(p.price)} c/u</span><button type="button" class="rm" data-a="x">Quitar</button></div></div>`).join('');
+  $('#lTot').textContent = money(cartTotal());
+}
+function openList() { $('#lview').hidden = false; $('#rview').hidden = true; renderList(); if (cartLines().length) $('#ldlg').showModal(); }
+$('#openList').onclick = () => { if ($('#dlg').open) $('#dlg').close(); openList(); };
+$('#items').addEventListener('click', e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const k = b.closest('.li').dataset.k, a = b.dataset.a;
+  setQty(k, a === 'x' ? 0 : qtyOf(k) + (a === '+' ? 1 : -1));
+});
+$('#clear').onclick = () => { if (confirm('¿Vaciar tu lista?')) { cart = []; saveCart(); renderBar(); syncAdd(); $('#ldlg').close(); } };
+$('#lclose').onclick = () => $('#ldlg').close();
+$('#ldlg').addEventListener('click', e => { if (e.target === $('#ldlg')) $('#ldlg').close(); });
+$('#back').onclick = () => { $('#rview').hidden = true; $('#lview').hidden = false; };
+
+function wrap(ctx, text, maxW, maxLines) {
+  const words = String(text).split(/\s+/).filter(Boolean), lines = []; let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(t).width <= maxW) cur = t; else { if (cur) lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) { lines.length = maxLines; let l = lines[maxLines - 1]; while (l.length > 1 && ctx.measureText(l + '…').width > maxW) l = l.slice(0, -1); lines[maxLines - 1] = l + '…'; }
+  return lines.length ? lines : [''];
+}
+async function drawSlip() {
+  try { await Promise.all([document.fonts.load('400 40px "Bodoni Moda"'), document.fonts.load('italic 400 40px "Bodoni Moda"'), document.fonts.load('400 26px Jost'), document.fonts.load('600 26px Jost')]); } catch {}
+  const ls = cartLines(), W = 1080, M = 56, DPR = 1;
+  const sans = 'Jost, "Avenir Next", system-ui, sans-serif', serif = '"Bodoni Moda", Didot, Georgia, serif';
+  const cols = { sku: M, desc: M + 170, talla: 590, cant: 716, precio: 880, imp: W - M };
+  const meas = document.createElement('canvas').getContext('2d'); meas.font = '400 26px ' + sans;
+  const rows = ls.map(({ p, q }) => {
+    const d = wrap(meas, [p.name || p.sku, p.color].filter(Boolean).join(' · '), 355, 3);
+    const t = wrap(meas, sizeText(p) || '—', 112, 3);
+    const s = wrap(meas, String(p.sku), 150, 2);
+    const n = Math.max(d.length, t.length, s.length);
+    return { p, q, d, t, s, h: n * 34 + 30 };
+  });
+  const H0 = 300, HEAD = 56, FOOT = 230;
+  const H = H0 + HEAD + rows.reduce((a, r) => a + r.h, 0) + FOOT;
+  const c = document.createElement('canvas'); c.width = W * DPR; c.height = H * DPR;
+  const x = c.getContext('2d'); x.scale(DPR, DPR);
+  x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#351715'; x.fillRect(0, 0, W, 210);
+  x.fillStyle = '#DDB5B5'; x.font = 'italic 400 40px ' + serif; x.textBaseline = 'alphabetic'; x.fillText('Lista de pedido', M, 92);
+  x.fillStyle = '#FFFFFF'; x.font = '400 84px ' + serif; x.fillText(S.name || 'Kutelle', M, 176);
+  const now = new Date(), pad = n => String(n).padStart(2, '0');
+  slipFolio = 'K' + pad(now.getDate()) + pad(now.getMonth() + 1) + '-' + pad(now.getHours()) + pad(now.getMinutes());
+  x.textAlign = 'right'; x.fillStyle = '#BEA994'; x.font = '400 26px ' + sans;
+  x.fillText(now.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }), W - M, 92);
+  x.fillText('Folio ' + slipFolio, W - M, 130);
+  x.textAlign = 'left';
+  x.fillStyle = '#6F5B49'; x.font = '400 24px ' + sans; x.fillText('Piezas que me gustaría apartar:', M, 262);
+  let y = H0;
+  x.fillStyle = '#F2E7E2'; x.fillRect(M - 12, y - 30, W - 2 * M + 24, HEAD - 6);
+  x.fillStyle = '#57100C'; x.font = '600 22px ' + sans;
+  const hy = y + 6; x.fillText('SKU', cols.sku, hy); x.fillText('DESCRIPCIÓN', cols.desc, hy); x.fillText('TALLA', cols.talla, hy);
+  x.textAlign = 'center'; x.fillText('CANT', cols.cant + 30, hy);
+  x.textAlign = 'right'; x.fillText('PRECIO', cols.precio, hy); x.fillText('IMPORTE', cols.imp, hy); x.textAlign = 'left';
+  y += HEAD - 14;
+  rows.forEach((r, i) => {
+    const top = y, base = top + 28;
+    x.fillStyle = '#351715'; x.font = '400 26px ' + sans;
+    r.s.forEach((t, k) => x.fillText(t, cols.sku, base + k * 34));
+    r.d.forEach((t, k) => x.fillText(t, cols.desc, base + k * 34));
+    r.t.forEach((t, k) => x.fillText(t, cols.talla, base + k * 34));
+    x.textAlign = 'center'; x.fillText(String(r.q), cols.cant + 30, base);
+    x.textAlign = 'right'; x.fillText(money(r.p.price), cols.precio, base);
+    x.font = '600 26px ' + sans; x.fillText(money(r.q * Number(r.p.price || 0)), cols.imp, base); x.textAlign = 'left';
+    y += r.h;
+    x.fillStyle = '#BEA994'; x.fillRect(M, y - 12, W - 2 * M, 1);
+  });
+  y += 20;
+  x.fillStyle = '#351715'; x.fillRect(M, y, W - 2 * M, 3);
+  const pcs = cartCount();
+  x.font = '400 28px ' + sans; x.fillStyle = '#6F5B49'; x.fillText(pcs + (pcs === 1 ? ' pieza' : ' piezas'), M, y + 62);
+  x.fillStyle = '#351715'; x.font = '400 46px ' + serif; x.textAlign = 'right';
+  x.fillText('Total  ' + money(cartTotal()), W - M, y + 66); x.textAlign = 'left';
+  x.fillStyle = '#6F5B49'; x.font = '400 22px ' + sans;
+  x.fillText('Sujeto a disponibilidad. Envía esta imagen para confirmar tu pedido y recibir los datos de pago.', M, y + 130, W - 2 * M);
+  return new Promise(res => c.toBlob(b => res(b), 'image/png'));
+}
+$('#gen').onclick = async () => {
+  const b = $('#gen'); b.disabled = true; const t = b.textContent; b.textContent = 'Generando…';
+  try {
+    slipBlob = await drawSlip();
+    if (!slipBlob) throw new Error('blob');
+    if ($('#slip').dataset.u) URL.revokeObjectURL($('#slip').dataset.u);
+    const u = URL.createObjectURL(slipBlob); $('#slip').src = u; $('#slip').dataset.u = u;
+    const wa = $('#wa');
+    if (S.whatsapp) {
+      const lines = cartLines().map(l => `• ${l.q} x ${l.p.name || ''}${l.p.color ? ' ' + l.p.color : ''} (SKU ${l.p.sku})`).join('\n');
+      wa.hidden = false; wa.href = 'https://wa.me/' + String(S.whatsapp).replace(/\D/g, '') + '?text=' + encodeURIComponent(`Hola, te mando mi lista de pedido (folio ${slipFolio}). Total ${money(cartTotal())}.\n${lines}`);
+    } else wa.hidden = true;
+    $('#rhint').textContent = S.whatsapp ? 'Primero guarda o comparte la imagen; después ábrela en el chat de WhatsApp para enviarla.' : 'También puedes mantener presionada la imagen para guardarla o tomarle captura.';
+    $('#lview').hidden = true; $('#rview').hidden = false;
+  } catch { toast('No se pudo generar la imagen, intenta de nuevo'); }
+  b.disabled = false; b.textContent = t;
+};
+$('#share').onclick = async () => {
+  if (!slipBlob) return;
+  const file = new File([slipBlob], 'lista-kutelle-' + slipFolio + '.png', { type: 'image/png' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Mi lista ' + (S.name || 'Kutelle') }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(slipBlob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+  toast('Imagen guardada');
+};
+renderBar();
+
 $('#gal').addEventListener('scroll', () => { const g = $('#gal'), i = Math.round(g.scrollLeft / Math.max(1, g.clientWidth)); document.querySelectorAll('#dots i').forEach((d, k) => d.classList.toggle('on', k === i)); }, { passive: true });
 $('#close').onclick = () => $('#dlg').close();
 $('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });
