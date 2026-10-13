@@ -50,6 +50,18 @@ h3{font-size:1rem;margin:22px 0 8px}
 .field.bad,.slots.bad .slot{border-color:var(--out);border-style:solid}
 .formerr{position:sticky;bottom:10px;z-index:3;margin:14px 0 0;padding:11px 14px;border-radius:10px;border:1.5px solid var(--out);background:var(--surface);color:var(--out);font-weight:600;font-size:.95rem;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .formerr[hidden]{display:none}
+.suggest{margin-top:12px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg)}
+.suggest[hidden]{display:none}
+.sg-head{display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
+.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;font:inherit;font-size:.85rem;cursor:pointer;padding:4px}
+.sg-main{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:6px 0}
+.sg-price{font-size:1.7rem;font-weight:800;letter-spacing:-.02em}
+.sg-lines{font-size:.88rem;display:grid;gap:3px;color:var(--ink)}
+.sg-lines .ok{color:var(--ok);font-weight:600}.sg-lines .low{color:var(--low);font-weight:600}.sg-lines .zero{color:var(--out);font-weight:600}
+.sg-lines .mut{color:var(--muted)}
+.suggest .hint.zero{color:var(--out);font-weight:600}
+.suggest .hint.low{color:var(--low);font-weight:600}
+.prrow{display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;margin-top:6px}
 select.field{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:32px}
 textarea.field{resize:vertical;min-height:90px}
 .btn{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -469,6 +481,18 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div><label class="lbl" for="fPrice">Precio de venta</label><input class="field num" id="fPrice" type="number" step="0.01" min="0" inputmode="decimal"></div>
     </div>
     <div class="row2">
+      <div><label class="lbl" for="fCost">Costo unitario</label><input class="field num" id="fCost" type="number" step="0.01" min="0" inputmode="decimal"></div>
+      <div><label class="lbl" for="fPack">Empaque por pieza</label><input class="field num" id="fPack" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    </div>
+    <div class="suggest" id="fSuggest" hidden>
+      <div class="sg-head"><b>Precio sugerido</b><button type="button" class="linkbtn" id="sgSet">Ajustar</button></div>
+      <div class="sg-main"><span class="sg-price num" id="sgPrice">—</span><button type="button" class="btn" id="sgUse">Usar este precio</button></div>
+      <div class="sg-lines" id="sgLines"></div>
+      <label class="lbl" for="fRef">Precio de esta prenda en otra tienda (opcional)</label>
+      <input class="field num" id="fRef" type="number" min="0" step="1" inputmode="decimal" placeholder="Ej. 799">
+      <p class="hint" id="sgNote"></p>
+    </div>
+    <div class="row2">
       <div><label class="lbl" for="fSize">Talla</label><select class="field" id="fSize"></select></div>
       <div><label class="lbl" for="fFit">¿Qué tallas abarca?</label><input class="field" id="fFit" maxlength="40" placeholder="Ej. 5-7 o CH a M"></div>
     </div>
@@ -500,10 +524,6 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       </div>
       <div class="row2">
         <div style="grid-column:1/-1"><label class="lbl" for="fSupplier">Proveedor</label><input class="field" id="fSupplier" maxlength="60" list="suppliersDL"></div>
-      </div>
-      <div class="row2">
-        <div><label class="lbl" for="fCost">Costo unitario</label><input class="field num" id="fCost" type="number" step="0.01" min="0" inputmode="decimal"></div>
-        <div><label class="lbl" for="fPack">Empaque por pieza</label><input class="field num" id="fPack" type="number" step="0.01" min="0" inputmode="decimal"></div>
       </div>
       <label class="lbl" for="fMin">Stock mínimo (para la alerta de reordenar)</label><input class="field num" id="fMin" type="number" min="0" step="1" inputmode="numeric">
     </details>
@@ -691,6 +711,21 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   <div class="dhead"><h2 id="lTitle">Listas</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
   <form class="dbody" id="listsForm"><p class="hint" style="margin-top:0">Una opción por renglón. Se usan en los menús y en la hoja Listas de tu Excel.</p><div id="listsBox"></div>
     <div class="actions"><button class="btn primary" type="submit">Guardar listas</button></div></form>
+</dialog>
+
+<dialog id="dPricing" aria-labelledby="prTitle">
+  <div class="dhead"><h2 id="prTitle">Ajustes del precio sugerido</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <form class="dbody" id="pricingForm" autocomplete="off">
+    <label class="lbl" for="prBelow" style="margin-top:0">¿Cuánto quieres cobrar por debajo de la tienda? (%)</label>
+    <input class="field num" id="prBelow" type="number" min="0" max="60" step="1" inputmode="decimal">
+    <label class="lbl" for="prFloor">Margen mínimo aceptable (%)</label>
+    <input class="field num" id="prFloor" type="number" min="0" max="90" step="1" inputmode="decimal">
+    <p class="hint">Si para quedar debajo de la tienda tu margen baja de este número, te aviso.</p>
+    <label class="lbl">Precio de referencia de la tienda, por categoría</label>
+    <p class="hint" style="margin-top:0" id="prSrc"></p>
+    <div id="prRefs"></div>
+    <div class="actions"><button class="btn" type="button" id="prReset">Limpiar referencias</button><button class="btn primary" type="submit">Guardar</button></div>
+  </form>
 </dialog>
 
 <!-- Scanner -->
@@ -1299,9 +1334,11 @@ function openForm(id, code) {
   $('#fSupplier').value = p ? (p.supplier || '') : (last?.supplier || '');
   $('#fCost').value = p ? (p.cost ?? '') : '';
   $('#fPack').value = p ? (p.packaging ?? '') : (last ? num(last.packaging) : '');
+  $('#fRef').value = p ? (p.refPrice ?? '') : ''; $('#fPrice').dataset.touched = p ? '1' : '';
   $('#fMin').value = p ? num(p.minStock) : 0;
   $('#fMore').open = !p;
   $('#fDelete').hidden = !p;
+  renderSuggest();
   $('#fSave').disabled = false; $('#fSave').textContent = 'Guardar producto';
   $('#dForm').showModal();
 }
@@ -1366,7 +1403,7 @@ $('#pForm').onsubmit = async e => {
     const data = {
       ...prev, sku, price: Math.max(0, num(priceRaw)), barcode: code,
       name: $('#fName').value.trim(), category: $('#fCat').value, size: $('#fSize').value, fit: $('#fFit').value.trim(), color: $('#fColor').value.trim(),
-      supplier: $('#fSupplier').value.trim(), cost: Math.max(0, num($('#fCost').value)), packaging: Math.max(0, num($('#fPack').value)),
+      refPrice: num($('#fRef').value) || null, supplier: $('#fSupplier').value.trim(), cost: Math.max(0, num($('#fCost').value)), packaging: Math.max(0, num($('#fPack').value)),
       minStock: Math.max(0, parseInt($('#fMin').value, 10) || 0), images,
       initialStock: isNew ? (asPurchase ? 0 : qty) : Math.max(0, parseInt($('#fInit').value, 10) || 0),
       order: prev.order ?? (D.products.reduce((m, p) => Math.max(m, num(p.order)), 0) + 1),
@@ -1390,6 +1427,94 @@ $('#fDelete').onclick = async () => {
   const used = p && (p.bought || p.sold || p.back);
   if (!confirm(used ? 'Esta pieza tiene compras o ventas registradas. Si la eliminas, esas filas quedarán con “SKU no existe” en tu Excel. ¿Eliminarla de todos modos?' : '¿Eliminar este producto del catálogo?')) return;
   try { await store.del('products', editingId); $('#dForm').close(); toast('Producto eliminado'); } catch { toast('No se pudo eliminar'); }
+};
+
+
+/* ---------------- Precio sugerido ---------------- */
+const PRICING_SRC = 'Opcional. Si quieres comparar con una tienda, escribe aquí un precio de referencia por categoría. Si lo dejas vacío, el precio sale solo de tu margen y de tus propios precios.';
+const ZARA_REFS = {};
+const getPricing = () => {
+  const c = S.config.pricing || {};
+  return { below: isFinite(parseFloat(c.below)) ? parseFloat(c.below) : 15, floor: isFinite(parseFloat(c.floor)) ? parseFloat(c.floor) : 30, refs: c.refs && typeof c.refs === 'object' ? c.refs : ZARA_REFS };
+};
+const up9 = x => Math.ceil((x + 1) / 10) * 10 - 1;      // el precio terminado en 9 más cercano hacia arriba
+const down9 = x => Math.floor((x + 1) / 10) * 10 - 1;   // el precio terminado en 9 más cercano hacia abajo
+function avgMargin(cat) {
+  const ok = D.products.filter(p => num(p.cost) > 0 && num(p.price) > 0 && p.id !== editingId).map(p => ({ cat: p.category || '', m: (num(p.price) - num(p.cost) - num(p.packaging)) / num(p.price) }));
+  const mean = a => a.reduce((s, x) => s + x.m, 0) / a.length;
+  const same = cat ? ok.filter(x => x.cat === cat) : [];
+  if (same.length >= 3) return { m: mean(same), n: same.length, scope: 'de tus ' + same.length + ' piezas de ' + cat };
+  if (ok.length) return { m: mean(ok), n: ok.length, scope: 'de tus ' + ok.length + ' piezas con costo' };
+  return { m: 0.5, n: 0, scope: 'estimado, aún no tienes piezas con costo' };
+}
+function calcSuggest() {
+  const cost = num($('#fCost').value), pack = num($('#fPack').value);
+  if (cost <= 0) return null;
+  const cat = $('#fCat').value, P = getPricing();
+  const am = avgMargin(cat), T = Math.min(0.9, Math.max(0.05, am.m));
+  const base = cost + pack;
+  const byMargin = up9(base / (1 - T));
+  const manual = num($('#fRef').value), fromCat = num(P.refs[cat]);
+  const R = manual || fromCat || 0, refSrc = manual ? 'la tienda' : (fromCat ? 'Tienda (referencia de ' + cat + ')' : '');
+  const floorM = P.floor / 100;
+  const marginOf = price => (price - base) / price;
+  let rec = byMargin, kind = 'margin', cap = 0, byFloor = up9(base / (1 - floorM));
+  if (R) {
+    cap = down9(R * (1 - P.below / 100));
+    if (byMargin <= cap) kind = 'ok';
+    else if (marginOf(cap) >= floorM) { rec = cap; kind = 'cap'; }
+    else { rec = byFloor; kind = 'tight'; }
+  }
+  return { cost, pack, base, T, am, rec, kind, cap, R, refSrc, byMargin, byFloor, margin: marginOf(rec), profit: rec - base, floorM, below: P.below };
+}
+function renderSuggest() {
+  const box = $('#fSuggest'); if (!box) return;
+  box.hidden = false;
+  const r = calcSuggest(), L = $('#sgLines'), pr = $('#sgPrice'), use = $('#sgUse'), note = $('#sgNote');
+  if (!r) { pr.textContent = '—'; use.textContent = 'Escribir el costo'; use.dataset.mode = 'cost'; L.innerHTML = '<span class="mut">Escribe el costo de la pieza y te calculo el precio.</span>'; note.textContent = ''; return; }
+  use.dataset.mode = 'price'; use.textContent = 'Usar este precio';
+  pr.textContent = money(r.rec).replace('.00', '');
+  const pct = x => Math.round(x * 100) + '%';
+  const mcls = r.margin < 0 ? 'zero' : r.margin < r.floorM ? 'low' : 'ok';
+  const lines = [`<span class="${mcls}">Margen ${pct(r.margin)} · ganas ${money(r.profit).replace('.00', '')} por pieza</span>`,
+    `<span class="mut">Tu margen promedio: ${pct(r.T)} (${esc(r.am.scope)})</span>`];
+  if (r.R) lines.push(`<span>${esc(cap1(r.refSrc))}: ${money(r.R).replace('.00', '')} → quedas ${Math.abs(Math.round((1 - r.rec / r.R) * 100))}% ${r.rec <= r.R ? 'abajo' : 'arriba'}</span>`);
+  const mine = D.products.filter(p => num(p.price) > 0 && p.id !== editingId && (p.category || '') === $('#fCat').value).map(p => num(p.price));
+  if (mine.length) lines.push(`<span class="mut">Tus ${esc($('#fCat').value || 'piezas')} se venden de ${money(Math.min(...mine)).replace('.00', '')} a ${money(Math.max(...mine)).replace('.00', '')} (promedio ${money(mine.reduce((a, b) => a + b, 0) / mine.length).replace('.00', '').replace(/\.\d+$/, '')})</span>`);
+  if (!r.R) lines.push('<span class="mut">Calculado con tu margen promedio, sin comparar con tiendas.</span>');
+  L.innerHTML = lines.join('');
+  note.className = 'hint';
+  if (r.kind === 'ok') note.textContent = `Con tu margen promedio ya quedas por debajo de la tienda. Podrías subir hasta ${money(r.cap).replace('.00', '')} y seguir ${r.below}% abajo.`;
+  else if (r.kind === 'cap') note.textContent = `Para quedar ${r.below}% debajo de la tienda el precio baja a ${money(r.cap).replace('.00', '')}. Ganas menos que tu promedio, pero arriba de tu mínimo de ${pct(r.floorM)}.`;
+  else if (r.kind === 'tight') { note.className = 'hint zero'; note.textContent = `Ojo: con este costo no alcanzas tu margen mínimo de ${pct(r.floorM)} y quedar ${r.below}% debajo de la tienda (tendrías que vender a ${money(r.cap).replace('.00', '')}). El precio sugerido protege tu margen mínimo${r.rec > r.R ? ' pero queda por encima de la tienda' : ''}. Considera negociar el costo (máximo ${money(Math.floor(r.cap * (1 - r.floorM) - r.pack)).replace('.00', '')} por pieza).`; }
+  else note.textContent = 'Precio calculado con tu margen promedio. Si ves la prenda en otra tienda, escribe su precio arriba para comparar.';
+  if (mine.length && r.rec > Math.max(...mine) * 1.25) { note.className = 'hint low'; note.textContent += ' Ojo: queda mucho más alto que lo que sueles vender en esta categoría (hasta ' + money(Math.max(...mine)).replace('.00', '') + ').'; }
+  // Pieza nueva: si no has escrito el precio tú mismo, lo pongo en automático
+  const price = $('#fPrice');
+  if (!editingId && price.dataset.touched !== '1') { price.value = r.rec; }
+}
+const cap1 = t => t.charAt(0).toUpperCase() + t.slice(1);
+['fCost', 'fPack', 'fRef'].forEach(id => $('#' + id).addEventListener('input', renderSuggest));
+$('#fCat').addEventListener('change', renderSuggest);
+$('#fPrice').addEventListener('input', e => { if (e.isTrusted) $('#fPrice').dataset.touched = '1'; });
+$('#sgUse').onclick = () => {
+  if ($('#sgUse').dataset.mode === 'cost') { $('#fCost').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('#fCost').focus({ preventScroll: true }); return; }
+  const r = calcSuggest(); if (!r) return;
+  $('#fPrice').value = r.rec; $('#fPrice').dataset.touched = '1'; clearFormErr(); renderSuggest(); toast('Precio listo: ' + money(r.rec).replace('.00', ''));
+};
+$('#sgSet').onclick = () => {
+  const P = getPricing(), L = lists();
+  $('#prBelow').value = P.below; $('#prFloor').value = P.floor; $('#prSrc').textContent = PRICING_SRC;
+  $('#prRefs').innerHTML = L.categories.map((c, i) => `<div class="prrow"><label for="pr_${i}">${esc(c)}</label><input class="field num" id="pr_${i}" data-cat="${esc(c)}" type="number" min="0" step="1" inputmode="decimal" placeholder="—" value="${P.refs[c] ? esc(P.refs[c]) : ''}"></div>`).join('');
+  $('#dPricing').showModal();
+};
+$('#prReset').onclick = () => { $('#prRefs').querySelectorAll('input[data-cat]').forEach(i => { i.value = ''; }); toast('Referencias limpiadas. Toca Guardar.'); };
+$('#pricingForm').onsubmit = async e => {
+  e.preventDefault();
+  if (!canWrite) { toast('Esta cuenta solo puede ver'); return; }
+  const refs = {}; $('#prRefs').querySelectorAll('input[data-cat]').forEach(i => { const v = num(i.value); if (v > 0) refs[i.dataset.cat] = Math.round(v); });
+  const cfg = { below: Math.min(60, Math.max(0, num($('#prBelow').value))), floor: Math.min(90, Math.max(0, num($('#prFloor').value))), refs };
+  try { await store.set('config', 'pricing', cfg); S.config.pricing = cfg; $('#dPricing').close(); renderSuggest(); toast('Ajustes guardados'); } catch { toast('No se pudieron guardar los ajustes'); }
 };
 
 /* ---------------- Tickets (sale and purchase) ---------------- */
