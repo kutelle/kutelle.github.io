@@ -559,6 +559,9 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div style="display:flex;align-items:center;gap:6px"><input class="field num" id="salePct" type="number" min="0" max="100" step="0.5" inputmode="decimal" placeholder="Otro" style="width:90px;text-align:right" aria-label="Porcentaje de descuento"><b>%</b></div>
     </div>
     <p class="hint">Se aplica a todas las piezas. Si quieres, ajusta el descuento en pesos de una pieza en particular.</p>
+    <label class="lbl" for="saleShipMode">Envío</label>
+    <select class="field" id="saleShipMode"><option value="none">Sin costo de envío (punto medio)</option><option value="free">Envío gratis (llegó a $999)</option><option value="paid">Envío a domicilio: $40</option></select>
+    <p class="hint" id="saleShipHint"></p>
     <div class="total"><span id="saleSub"></span><b class="num" id="saleTotal"></b></div>
     <div class="kv num" id="saleCalc" style="margin-top:10px"></div>
     <p class="hint" id="saleWarn" style="font-weight:600"></p>
@@ -1547,22 +1550,28 @@ function availFor(sku) {
   if (t.editKey) for (const r of Object.values(S.sales)) if (String(r.number) === t.editKey && r.sku === sku) back += num(r.qty);
   return stockOf(sku) + back;
 }
+const SHIP_FEE = 40, SHIP_FREE = 999;
 function updateTotal(kind) {
   const t = T[kind];
   if (kind === 'sale') {
     const sub = t.items.reduce((s, it) => s + num(it.qty) * num(it.unitPrice), 0);
     const disc = t.items.reduce((s, it) => s + num(it.discount), 0);
-    const tot = sub - disc;
+    const goods = sub - disc;
+    const mode = $('#saleShipMode').value, fee = mode === 'paid' ? SHIP_FEE : 0;
+    const tot = goods + fee;
     const cost = t.items.reduce((s, it) => { const p = D.bySku[it.sku]; return s + num(it.qty) * (p ? num(p.cost) + num(p.packaging) : 0); }, 0);
-    const profit = tot - cost, margin = tot > 0 ? profit / tot : 0;
+    const profit = goods - cost, margin = goods > 0 ? profit / goods : 0;
+    const sh = $('#saleShipHint'); sh.className = 'hint';
+    sh.textContent = !t.items.length ? '' : mode === 'free' && goods < SHIP_FREE ? `Ojo: la compra es de ${money(goods)} y aún no llega a $${SHIP_FREE} para envío gratis.` : mode !== 'free' && goods >= SHIP_FREE ? `La compra llega a $${SHIP_FREE}: le corresponde envío gratis a domicilio.` : '';
     const u = t.items.reduce((s, it) => s + num(it.qty), 0);
     $('#saleSub').textContent = u ? `Total a cobrar, ${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#saleTotal').textContent = money(tot);
     const pctTxt = sub > 0 && disc > 0 ? ` (${Math.round(disc / sub * 1000) / 10}%)` : '';
     $('#saleCalc').innerHTML = u ? [
       ['Precio normal', money(sub)],
       ['Descuento' + pctTxt, disc > 0 ? '-' + money(disc) : money(0)],
+      ...(mode === 'paid' ? [['Envío (no cuenta como ganancia de prendas)', money(fee)]] : mode === 'free' ? [['Envío gratis', money(0)]] : []),
       ['Costo de las piezas y empaque', money(cost)],
-      ['Tu ganancia', `<span class="${profit < 0 ? 'zero' : margin < 0.3 ? 'low' : 'ok'}">${money(profit)}${tot > 0 ? ' (' + Math.round(margin * 100) + '%)' : ''}</span>`, 1]
+      ['Tu ganancia', `<span class="${profit < 0 ? 'zero' : margin < 0.3 ? 'low' : 'ok'}">${money(profit)}${goods > 0 ? ' (' + Math.round(margin * 100) + '%)' : ''}</span>`, 1]
     ].map(([l, v, st]) => `<div${st ? ' class="strong"' : ''}><span>${l}</span><span>${v}</span></div>`).join('') : '';
     $('#saleCalc').hidden = !u;
     const w = $('#saleWarn');
@@ -1635,6 +1644,7 @@ function openSale(number, firstSku) {
   if (tk) t.items = tk.rows.map(r => ({ sku: r.sku, qty: num(r.qty), unitPrice: num(r.unitPrice), discount: num(r.discount) || '' }));
   const pcts = tk ? [...new Set(tk.rows.map(r => r.discountPct || ''))] : [''];
   $('#salePct').value = pcts.length === 1 && pcts[0] ? pcts[0] : ''; syncPctChips();
+  $('#saleShipMode').value = tk && tk.rows[0] && tk.rows[0].shipMode ? tk.rows[0].shipMode : 'none';
   $('#saleAdd').innerHTML = skuOptions();
   $('#saleExtra').hidden = !tk || !canWrite; $('#saleDel').hidden = !tk; $('#saleTicket').hidden = !tk;
   renderItems('sale');
@@ -1656,7 +1666,7 @@ $('#saleForm').onsubmit = async e => {
   for (const sku in need) if (need[sku] > availFor(sku)) { toast(`${sku}: solo hay ${availFor(sku)} disponibles`); return; }
   $('#saleSave').disabled = true;
   try {
-    const header = { date, number, client: $('#saleClient').value.trim(), channel: $('#saleChannel').value, payment: $('#salePay').value };
+    const header = { date, number, client: $('#saleClient').value.trim(), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0 };
     lsSet('lastChannel', header.channel); lsSet('lastPay', header.payment);
     if (t.editKey) for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === t.editKey) await store.del('sales', id);
     let k = 0;
@@ -1678,12 +1688,12 @@ async function drawTicket(tk) {
   const logo = await tkLoadLogo();
   const W = 800, PX = 64, TW = W - 80, X0 = 40, zz = 14;
   const lines = tk.rows.map(r => { const p = D.bySku[r.sku]; const q = num(r.qty), u = num(r.unitPrice), d = num(r.discount); return { name: titleOf(p), meta: [r.sku ? 'SKU ' + r.sku : '', sizeText(p) ? 'Talla ' + sizeText(p) : ''].filter(Boolean).join(' · '), qty: q, unit: u, disc: d }; });
-  const sub = lines.reduce((a, l) => a + l.qty * l.unit, 0), disc = lines.reduce((a, l) => a + l.disc, 0), total = sub - disc;
+  const sub = lines.reduce((a, l) => a + l.qty * l.unit, 0), disc = lines.reduce((a, l) => a + l.disc, 0), fee = tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0, total = sub - disc + fee, extra = disc > 0 || tk.shipMode === 'paid' || tk.shipMode === 'free';
   const cv = document.createElement('canvas'); const c = cv.getContext('2d');
   const wrapTxt = (txt, font, maxW) => { c.font = font; const out = []; let cur = ''; for (const w of String(txt).split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out; };
   const nameW = TW - PX * 2 - 170;
   const blocks = lines.map(l => ({ l, nm: wrapTxt(l.name, '600 27px ' + FONT, nameW) }));
-  let H = 1000 + (tk.client ? 80 : 0) + (disc > 0 ? 110 : 0);
+  let H = 1000 + (tk.client ? 80 : 0) + (extra ? 200 : 0);
   for (const b of blocks) H += (b.nm.length - 1) * 34 + 112 + (b.l.disc > 0 ? 30 : 0);
   cv.width = W; cv.height = H;
   c.fillStyle = BG; c.fillRect(0, 0, W, H);
@@ -1713,9 +1723,11 @@ async function drawTicket(tk) {
     y += 14;
   }
   y += 10; dash(y); y += 50;
-  if (disc > 0) {
+  if (extra) {
     c.font = '500 27px ' + FONT; c.fillStyle = INK; c.textAlign = 'left'; c.fillText('Subtotal', L, y); c.textAlign = 'right'; c.fillText(m(sub), R, y);
-    y += 46; c.fillStyle = VINO; c.textAlign = 'left'; c.fillText('Descuento' + (tk.pct ? ' (' + tk.pct + '%)' : ''), L, y); c.textAlign = 'right'; c.fillText('−' + m(disc), R, y);
+    if (disc > 0) { y += 46; c.fillStyle = VINO; c.textAlign = 'left'; c.fillText('Descuento' + (tk.pct ? ' (' + tk.pct + '%)' : ''), L, y); c.textAlign = 'right'; c.fillText('−' + m(disc), R, y); }
+    if (tk.shipMode === 'paid') { y += 46; c.fillStyle = INK; c.textAlign = 'left'; c.fillText('Envío a domicilio', L, y); c.textAlign = 'right'; c.fillText(m(fee), R, y); }
+    else if (tk.shipMode === 'free') { y += 46; c.fillStyle = VINO; c.textAlign = 'left'; c.fillText('Envío', L, y); c.textAlign = 'right'; c.fillText('¡GRATIS!', R, y); }
     y += 30; dash(y); y += 52;
   }
   c.fillStyle = INK; c.textAlign = 'left'; c.font = '700 30px ' + FONT; ls('2px'); c.fillText('TOTAL A PAGAR', L, y); ls('0px');
@@ -1743,8 +1755,9 @@ async function showTicket(tk) {
 function saleToTicket(number) {
   const tk = D.tickets.find(x => x.number === String(number)); if (!tk) return null;
   const pcts = [...new Set(tk.rows.map(r => r.discountPct || 0))];
-  return { number: tk.number, date: tk.date, client: tk.client, rows: tk.rows, pct: pcts.length === 1 ? pcts[0] : 0 };
+  return { number: tk.number, date: tk.date, client: tk.client, rows: tk.rows, shipMode: (tk.rows[0] || {}).shipMode, shipFee: (tk.rows[0] || {}).shipFee, pct: pcts.length === 1 ? pcts[0] : 0 };
 }
+$('#saleShipMode').onchange = () => updateTotal('sale');
 $('#saleTicket').onclick = () => { const t = saleToTicket(T.sale.editKey); if (t) showTicket(t); else toast('No se encontró la venta'); };
 $('#tkSave').onclick = () => { if (!tkBlob) return; const a = document.createElement('a'); a.href = tkUrl; a.download = tkName; document.body.appendChild(a); a.click(); a.remove(); };
 $('#tkShare').onclick = async () => {
