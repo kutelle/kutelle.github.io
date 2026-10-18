@@ -108,7 +108,7 @@ textarea.field{resize:vertical;min-height:90px}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 /* nav */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1.5px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tabs div{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
+.tabs div{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(7,1fr)}
 .tabs button{border:0;background:transparent;padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.72rem;font-weight:600;color:var(--muted);cursor:pointer}
 .tabs button[aria-current="page"]{color:var(--ink)}
 .tabs button[aria-current="page"] svg{background:var(--accent);color:var(--accent-ink);border-radius:8px}
@@ -322,6 +322,13 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <div class="rows" id="purList"></div>
   </section>
 
+  <!-- CUENTAS -->
+  <section id="s-cue" hidden>
+    <div class="seg" id="cueTabs"><button data-t="ar" aria-pressed="true">Por cobrar</button><button data-t="ap" aria-pressed="false">Por pagar</button></div>
+    <p class="stats num" id="cueStats"></p>
+    <div class="rows" id="cueList"></div>
+  </section>
+
   <!-- GASTOS -->
   <section id="s-gas" hidden>
     <div class="bar w"><button class="btn primary" id="newExp">Nuevo gasto</button></div>
@@ -435,6 +442,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   <button data-s="ven"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 016 0"/></svg>Ventas</button>
   <button data-s="com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2 11h11l2-8H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>Compras</button>
   <button data-s="gas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Gastos</button>
+  <button data-s="cue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5C9.5 8.4 10.6 8 12 8s2.5.5 2.5 1.6c0 2.4-5 1.2-5 3.8 0 1.1 1.1 1.6 2.5 1.6s2.5-.5 2.5-1.6"/></svg>Cuentas</button>
   <button data-s="fin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>Finanzas</button>
   <button data-s="res"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Panel</button>
 </div></nav>
@@ -559,6 +567,9 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div style="display:flex;align-items:center;gap:6px"><input class="field num" id="salePct" type="number" min="0" max="100" step="0.5" inputmode="decimal" placeholder="Otro" style="width:90px;text-align:right" aria-label="Porcentaje de descuento"><b>%</b></div>
     </div>
     <p class="hint">Se aplica a todas las piezas. Si quieres, ajusta el descuento en pesos de una pieza en particular.</p>
+    <label class="lbl" for="salePayState">Estado del pago</label>
+    <select class="field" id="salePayState"><option value="paid">Pagada</option><option value="pending">Pendiente de pago (por cobrar)</option></select>
+    <div id="saleDueWrap" hidden><label class="lbl" for="saleDue">Fecha límite de pago</label><input class="field" type="date" id="saleDue"></div>
     <label class="lbl" for="saleShipMode">Envío</label>
     <select class="field" id="saleShipMode"><option value="none">Sin costo de envío (punto medio)</option><option value="free">Envío gratis (llegó a $999)</option><option value="paid">Envío a domicilio: $40</option></select>
     <p class="hint" id="saleShipHint"></p>
@@ -579,11 +590,23 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div><label class="lbl" for="purNo" style="margin-top:0">N° compra o nota</label><input class="field num" id="purNo" maxlength="40"></div>
     </div>
     <label class="lbl" for="purSupplier">Proveedor</label><input class="field" id="purSupplier" maxlength="60" list="suppliersDL">
+    <label class="lbl" for="purPayState">Estado del pago</label>
+    <select class="field" id="purPayState"><option value="paid">Pagada</option><option value="credit">A crédito (por pagar)</option></select>
+    <div id="purDueWrap" hidden><label class="lbl" for="purDue">Fecha límite de pago</label><input class="field" type="date" id="purDue"></div>
     <label class="lbl" for="purNotes">Notas</label><input class="field" id="purNotes" maxlength="200">
+    <label class="lbl">Foto de la nota o lista del proveedor (opcional)</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label class="btn" style="cursor:pointer"><span id="purListTxt">Subir foto de la nota o lista</span><input type="file" accept="image/*" id="purListIn" hidden></label>
+      <button type="button" class="linkbtn" id="purListRm" hidden>Quitar foto</button>
+    </div>
+    <img id="purListImg" alt="Nota del proveedor" hidden style="width:100%;max-width:320px;max-height:240px;object-fit:contain;margin-top:8px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg)">
     <label class="lbl">Piezas</label>
     <div class="items" id="purItems"></div>
     <div class="inline"><button type="button" class="btn" id="purScan">Escanear pieza</button><select class="field" id="purAdd" aria-label="Agregar por SKU"></select></div>
-    <p class="hint">¿Una pieza nueva que no está en tu catálogo? Dala de alta en Inventario con “Nuevo producto”.</p>
+    <label class="lbl">Piezas nuevas (aún no están en tu catálogo)</label>
+    <div class="items" id="purNew"></div>
+    <button type="button" class="btn" id="purNewBtn" style="margin-top:8px;width:100%">Agregar pieza nueva con fotos</button>
+    <p class="hint">Cada pieza nueva se da de alta en tu inventario con sus fotos y entra en esta compra.</p>
     <div class="total"><span id="purSub"></span><b class="num" id="purTotal"></b></div>
     <div class="actions"><button type="button" class="btn danger" id="purDel" hidden>Eliminar compra</button><button class="btn primary" type="submit" id="purSave">Guardar compra</button></div>
   </form>
@@ -723,6 +746,57 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <img id="tkImg" alt="Ticket de venta" style="width:100%;max-width:420px;display:block;margin:0 auto;border-radius:8px">
     <div class="actions"><button type="button" class="btn" id="tkSave">Guardar imagen</button><button type="button" class="btn primary" id="tkShare">Compartir</button></div>
   </div>
+</dialog>
+<dialog id="dPay" aria-labelledby="payTitle">
+  <div class="dhead"><h2 id="payTitle">Cuenta</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <div class="dbody">
+    <div class="kv num" id="payInfo"></div>
+    <label class="lbl">Abonos</label>
+    <div class="kv num" id="payHist"></div>
+    <form id="payForm" autocomplete="off" novalidate>
+      <div class="row2">
+        <div><label class="lbl" for="payAmt">Monto del pago</label><input class="field num" id="payAmt" type="number" min="0" step="0.01" inputmode="decimal"></div>
+        <div><label class="lbl" for="payDate">Fecha</label><input class="field" type="date" id="payDate"></div>
+      </div>
+      <label class="lbl" for="payNote">Nota (opcional)</label><input class="field" id="payNote" maxlength="80" placeholder="Ej. transferencia, efectivo">
+      <div class="actions"><button class="btn primary" type="submit" id="paySave">Registrar pago</button></div>
+      <label class="lbl" for="payDue">Fecha límite</label>
+      <div class="inline"><input class="field" type="date" id="payDue"><button type="button" class="btn" id="payDueSave">Cambiar fecha</button></div>
+    </form>
+    <div class="actions"><button type="button" class="btn" id="payTicket" hidden>Ver ticket</button><button type="button" class="btn" id="payOpen">Abrir</button></div>
+  </div>
+</dialog>
+<dialog id="dPiece" aria-labelledby="pcTitle">
+  <div class="dhead"><h2 id="pcTitle">Pieza nueva</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <form class="dbody" id="pForm2" autocomplete="off" novalidate>
+    <p class="hint" id="pcErr" hidden style="color:var(--out);font-weight:600;margin-top:0"></p>
+    <label class="lbl" style="margin-top:0">Fotos (mínimo 1, ideal 3)</label>
+    <div class="slots" id="pcSlots">
+      <label class="slot"><img alt="" style="display:none"><span>Foto 1</span><input type="file" accept="image/*" hidden></label>
+      <label class="slot"><img alt="" style="display:none"><span>Foto 2</span><input type="file" accept="image/*" hidden></label>
+      <label class="slot"><img alt="" style="display:none"><span>Foto 3</span><input type="file" accept="image/*" hidden></label>
+    </div>
+    <div class="row2">
+      <div><label class="lbl" for="pcSku">SKU</label><input class="field" id="pcSku" maxlength="60" autocapitalize="characters"></div>
+      <div><label class="lbl" for="pcQty">Cantidad</label><input class="field num" id="pcQty" type="number" min="1" step="1" inputmode="numeric"></div>
+    </div>
+    <label class="lbl" for="pcName">Nombre</label><input class="field" id="pcName" maxlength="120" placeholder="Ej. Vestido largo satinado">
+    <div class="row2">
+      <div><label class="lbl" for="pcCat">Categoría</label><select class="field" id="pcCat"></select></div>
+      <div><label class="lbl" for="pcColor">Color</label><input class="field" id="pcColor" maxlength="40"></div>
+    </div>
+    <div class="row2">
+      <div><label class="lbl" for="pcSize">Talla</label><select class="field" id="pcSize"></select></div>
+      <div><label class="lbl" for="pcFit">¿Qué tallas abarca?</label><input class="field" id="pcFit" maxlength="40" placeholder="Ej. CH-G"></div>
+    </div>
+    <div class="row2">
+      <div><label class="lbl" for="pcCost">Costo unitario</label><input class="field num" id="pcCost" type="number" step="0.01" min="0" inputmode="decimal"></div>
+      <div><label class="lbl" for="pcPack">Empaque por pieza</label><input class="field num" id="pcPack" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    </div>
+    <button type="button" class="btn" id="pcSugg" hidden style="margin-top:8px;width:100%"></button>
+    <label class="lbl" for="pcPrice">Precio de venta</label><input class="field num" id="pcPrice" type="number" step="0.01" min="0" inputmode="decimal">
+    <div class="actions"><button class="btn primary" type="submit">Agregar a la compra</button></div>
+  </form>
 </dialog>
 <dialog id="dPricing" aria-labelledby="prTitle">
   <div class="dhead"><h2 id="prTitle">Ajustes del precio sugerido</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
@@ -1147,6 +1221,7 @@ function renderAll() {
   if (section === 'inv') renderInv();
   if (section === 'ven') { if (venTab === 'sales') renderSales(); else if (venTab === 'ship') renderShips(); else renderRets(); }
   if (section === 'com') renderPurchases();
+  if (section === 'cue') renderCuentas();
   if (section === 'gas') renderExpenses();
   if (section === 'res') renderSummary();
   if (section === 'fin') renderFinance();
@@ -1161,12 +1236,12 @@ function fillDatalists() {
 const opts = (arr, sel, blank) => (blank ? `<option value="">${esc(blank)}</option>` : '') + arr.map(v => `<option${String(v) === String(sel) ? ' selected' : ''}>${esc(v)}</option>`).join('') + (sel && !arr.includes(sel) ? `<option selected>${esc(sel)}</option>` : '');
 
 /* ---------------- Navigation ---------------- */
-const TITLES = { inv: 'Inventario', ven: 'Ventas', com: 'Compras', gas: 'Gastos', fin: 'Finanzas', res: 'Panel' };
+const TITLES = { inv: 'Inventario', ven: 'Ventas', com: 'Compras', cue: 'Cuentas', gas: 'Gastos', fin: 'Finanzas', res: 'Panel' };
 $$('.tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.s)));
 function go(s) {
   section = s;
   $$('.tabs button').forEach(b => { if (b.dataset.s === s) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  ['inv', 'ven', 'com', 'gas', 'fin', 'res'].forEach(k => $('#s-' + k).hidden = k !== s);
+  ['inv', 'ven', 'com', 'cue', 'gas', 'fin', 'res'].forEach(k => $('#s-' + k).hidden = k !== s);
   $('#secTitle').textContent = TITLES[s];
   window.scrollTo(0, 0); renderAll();
 }
@@ -1581,8 +1656,9 @@ function updateTotal(kind) {
     else if (disc > 0) { w.className = 'hint ok'; w.textContent = `Descuento sano: aún te queda ${Math.round(margin * 100)}% de ganancia.`; }
     else w.textContent = '';
   } else {
-    const tot = t.items.reduce((s, it) => s + num(it.qty) * num(it.unitCost), 0);
-    const u = t.items.reduce((s, it) => s + num(it.qty), 0);
+    const np = t.newPieces || [];
+    const tot = t.items.reduce((s, it) => s + num(it.qty) * num(it.unitCost), 0) + np.reduce((s, p) => s + p.qty * p.cost, 0);
+    const u = t.items.reduce((s, it) => s + num(it.qty), 0) + np.reduce((s, p) => s + p.qty, 0);
     $('#purSub').textContent = u ? `${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#purTotal').textContent = money(tot);
   }
 }
@@ -1645,6 +1721,7 @@ function openSale(number, firstSku) {
   const pcts = tk ? [...new Set(tk.rows.map(r => r.discountPct || ''))] : [''];
   $('#salePct').value = pcts.length === 1 && pcts[0] ? pcts[0] : ''; syncPctChips();
   $('#saleShipMode').value = tk && tk.rows[0] && tk.rows[0].shipMode ? tk.rows[0].shipMode : 'none';
+  $('#salePayState').value = tk && tk.rows[0] && tk.rows[0].payState === 'pending' ? 'pending' : 'paid'; $('#saleDue').value = tk && tk.rows[0] && tk.rows[0].dueDate || ''; syncSaleDue();
   $('#saleAdd').innerHTML = skuOptions();
   $('#saleExtra').hidden = !tk || !canWrite; $('#saleDel').hidden = !tk; $('#saleTicket').hidden = !tk;
   renderItems('sale');
@@ -1666,7 +1743,7 @@ $('#saleForm').onsubmit = async e => {
   for (const sku in need) if (need[sku] > availFor(sku)) { toast(`${sku}: solo hay ${availFor(sku)} disponibles`); return; }
   $('#saleSave').disabled = true;
   try {
-    const header = { date, number, client: $('#saleClient').value.trim(), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0 };
+    const header = { date, number, client: $('#saleClient').value.trim(), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0, payState: $('#salePayState').value, dueDate: $('#salePayState').value === 'pending' ? ($('#saleDue').value || addDaysISO(date, 1)) : '' };
     lsSet('lastChannel', header.channel); lsSet('lastPay', header.payment);
     if (t.editKey) for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === t.editKey) await store.del('sales', id);
     let k = 0;
@@ -1766,6 +1843,80 @@ $('#tkShare').onclick = async () => {
   try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: 'Ticket Kutelle' }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   $('#tkSave').click(); toast('Imagen guardada. Ya puedes mandarla por WhatsApp');
 };
+
+/* ===== Cuentas por cobrar y por pagar ===== */
+let cueTab = 'ar', payCtx = null;
+const addDaysISO = (iso, n) => { const [y, m, d] = String(iso).split('-').map(Number); const t = new Date(y, m - 1, d + n); return t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate()); };
+const payDocs = () => Object.entries(S.config).filter(([k, v]) => k.startsWith('pay_') && v && v.ref != null).map(([id, v]) => ({ id, ...v }));
+function cuentas() {
+  const pays = payDocs(); const paidOf = (kind, ref) => pays.filter(p => p.kind === kind && String(p.ref) === String(ref)).reduce((s, p) => s + num(p.amount), 0);
+  const ar = D.tickets.filter(t => t.rows[0] && t.rows[0].payState === 'pending').map(t => { const total = t.total + num(t.rows[0].shipFee); const paid = paidOf('ar', t.number); return { kind: 'ar', ref: t.number, who: t.client || 'Venta ' + t.number, label: 'N° ' + t.number, date: t.date, due: t.rows[0].dueDate || '', total, paid, bal: total - paid }; });
+  const ap = D.ptickets.filter(t => t.rows[0] && t.rows[0].payState === 'credit').map(t => { const paid = paidOf('ap', t.group); return { kind: 'ap', ref: t.group, who: t.supplier || 'Proveedor', label: t.number ? 'Nota ' + t.number : 'Compra', date: t.date, due: t.rows[0].dueDate || '', total: t.total, paid, bal: t.total - paid }; });
+  const open = a => a.filter(x => x.bal > 0.005).sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999')));
+  return { ar: open(ar), ap: open(ap), all: { ar, ap }, pays };
+}
+function dueInfo(due) {
+  if (!due) return { txt: 'Sin fecha límite', cls: '' };
+  const diff = Math.round((new Date(due + 'T00:00:00') - new Date(today() + 'T00:00:00')) / 864e5);
+  if (diff < 0) return { txt: `Vencida hace ${-diff} ${-diff === 1 ? 'día' : 'días'}`, cls: 'zero' };
+  if (diff === 0) return { txt: 'Vence hoy', cls: 'low' };
+  if (diff <= 2) return { txt: `Vence en ${diff} ${diff === 1 ? 'día' : 'días'}`, cls: 'low' };
+  return { txt: 'Vence ' + fmtDate(due), cls: '' };
+}
+function renderCuentas() {
+  const C = cuentas(); const list = C[cueTab];
+  const tot = list.reduce((s, x) => s + x.bal, 0), vencidas = list.filter(x => x.due && x.due < today());
+  const other = C[cueTab === 'ar' ? 'ap' : 'ar'].reduce((s, x) => s + x.bal, 0);
+  $('#cueStats').innerHTML = `<b>${cueTab === 'ar' ? 'Te deben' : 'Debes'} ${money(tot)}</b>${vencidas.length ? ` · <span class="zero">${vencidas.length} vencida${vencidas.length === 1 ? '' : 's'}</span>` : ''}<br><small>${cueTab === 'ar' ? 'Por pagar a proveedores' : 'Por cobrar a clientas'}: ${money(other)}</small>`;
+  $('#cueList').innerHTML = list.length ? list.map(x => { const di = dueInfo(x.due); return `<button class="row" type="button" data-k="${x.kind}" data-r="${esc(x.ref)}">
+    <div class="l"><b>${esc(x.who)}</b><small>${esc(x.label)}, ${fmtDate(x.date)}</small><small class="${di.cls}">${di.txt}</small></div>
+    <div class="r"><b class="num">${money(x.bal)}</b><small>${x.paid > 0 ? 'de ' + money(x.total) : 'pendiente'}</small></div></button>`; }).join('')
+    : `<div class="empty"><b>${cueTab === 'ar' ? 'Nadie te debe nada' : 'No debes nada a proveedores'}</b>${cueTab === 'ar' ? 'Cuando registres una venta como “Pendiente de pago”, aparece aquí.' : 'Cuando registres una compra “A crédito”, aparece aquí.'}</div>`;
+}
+$$('#cueTabs button').forEach(b => b.addEventListener('click', () => { cueTab = b.dataset.t; $$('#cueTabs button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderCuentas(); }));
+$('#cueList').addEventListener('click', e => { const b = e.target.closest('.row'); if (b) openPay(b.dataset.k, b.dataset.r); });
+function openPay(kind, ref) {
+  const C = cuentas(); const x = C.all[kind].find(a => String(a.ref) === String(ref)); if (!x) return;
+  payCtx = { kind, ref };
+  $('#payTitle').textContent = kind === 'ar' ? 'Cobro a ' + x.who : 'Pago a ' + x.who;
+  const di = dueInfo(x.due);
+  $('#payInfo').innerHTML = [['Documento', x.label + ', ' + fmtDate(x.date)], ['Total', money(x.total)], ['Abonado', money(x.paid)], ['Falta', money(Math.max(0, x.bal))], ['Fecha límite', `<span class="${di.cls}">${x.due ? fmtDate(x.due) + ' · ' + di.txt : 'Sin fecha'}</span>`]].map(([l, v], i) => `<div${i === 3 ? ' class="strong"' : ''}><span>${l}</span><span>${v}</span></div>`).join('');
+  const mine = C.pays.filter(p => p.kind === kind && String(p.ref) === String(ref)).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  $('#payHist').innerHTML = mine.length ? mine.map(p => `<div><span>${fmtDate(p.date)}${p.note ? ', ' + esc(p.note) : ''}</span><span>${money(p.amount)} <button type="button" class="linkbtn" data-del="${esc(p.id)}">Quitar</button></span></div>`).join('') : '<div><span>Sin abonos todavía</span><span></span></div>';
+  $('#payAmt').value = x.bal > 0 ? Math.round(x.bal * 100) / 100 : ''; $('#payDate').value = today(); $('#payNote').value = '';
+  $('#payDue').value = x.due || '';
+  $('#payAmt').closest('form').hidden = !canWrite;
+  $('#payOpen').textContent = kind === 'ar' ? 'Abrir venta' : 'Abrir compra';
+  $('#payTicket').hidden = kind !== 'ar';
+  if (!$('#dPay').open) $('#dPay').showModal();
+}
+$('#payHist').addEventListener('click', async e => { const b = e.target.closest('[data-del]'); if (!b || !payCtx || !confirm('¿Quitar este abono?')) return; try { await store.del('config', b.dataset.del); delete S.config[b.dataset.del]; renderAll(); openPay(payCtx.kind, payCtx.ref); } catch { toast('No se pudo quitar'); } });
+$('#payForm').onsubmit = async e => {
+  e.preventDefault(); if (!payCtx) return;
+  const amt = num($('#payAmt').value), date = $('#payDate').value;
+  if (!(amt > 0)) { toast('Escribe cuánto se pagó'); return; }
+  if (!date) { toast('Elige la fecha del pago'); return; }
+  $('#paySave').disabled = true;
+  try {
+    const id = 'pay_' + store.newId(); const data = { kind: payCtx.kind, ref: String(payCtx.ref), amount: amt, date, note: $('#payNote').value.trim(), createdAt: Date.now() };
+    await store.set('config', id, data); S.config[id] = data;
+    const x = cuentas().all[payCtx.kind].find(a => String(a.ref) === String(payCtx.ref));
+    toast(x && x.bal <= 0.005 ? (payCtx.kind === 'ar' ? 'Cobrada por completo' : 'Pagada por completo') : 'Abono registrado');
+    renderAll(); if (x && x.bal > 0.005) openPay(payCtx.kind, payCtx.ref); else $('#dPay').close();
+  } catch { toast('No se pudo guardar'); }
+  finally { $('#paySave').disabled = false; }
+};
+$('#payDueSave').onclick = async () => {
+  if (!payCtx) return; const due = $('#payDue').value;
+  const rows = payCtx.kind === 'ar' ? (D.tickets.find(t => t.number === String(payCtx.ref)) || {}).rows : (D.ptickets.find(t => t.group === payCtx.ref) || {}).rows;
+  try { for (const r of rows || []) await store.set(payCtx.kind === 'ar' ? 'sales' : 'purchases', r.id, (({ id, ...rest }) => ({ ...rest, dueDate: due }))(r)); toast('Fecha límite actualizada'); openPay(payCtx.kind, payCtx.ref); } catch { toast('No se pudo guardar'); }
+};
+$('#payOpen').onclick = () => { if (!payCtx) return; const { kind, ref } = payCtx; $('#dPay').close(); if (kind === 'ar') openSale(ref); else openPurchase(ref); };
+$('#payTicket').onclick = () => { const t = saleToTicket(payCtx.ref); if (t) showTicket(t); };
+// estado de pago en formularios
+function syncSaleDue() { $('#saleDueWrap').hidden = $('#salePayState').value !== 'pending'; if (!$('#saleDueWrap').hidden && !$('#saleDue').value) $('#saleDue').value = addDaysISO($('#saleDate').value || today(), 1); }
+function syncPurDue() { $('#purDueWrap').hidden = $('#purPayState').value !== 'credit'; if (!$('#purDueWrap').hidden && !$('#purDue').value) $('#purDue').value = addDaysISO($('#purDate').value || today(), 15); }
+$('#salePayState').onchange = syncSaleDue; $('#purPayState').onchange = syncPurDue;
 $('#saleDel').onclick = async () => {
   const k = T.sale.editKey; if (!k || !confirm('¿Eliminar esta venta? Las piezas regresan al inventario.')) return;
   try { for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === k) await store.del('sales', id); $('#dSale').close(); toast('Venta eliminada'); } catch { toast('No se pudo eliminar'); }
@@ -1777,7 +1928,7 @@ function renderSales() {
   const tot = yr.reduce((s, t) => s + t.total, 0), pr = yr.reduce((s, t) => s + t.profit, 0);
   $('#salesStats').textContent = D.tickets.length ? `${yr.length} ventas en ${y}, total ${money(tot)}, ganancia bruta ${money(pr)}` : '';
   $('#salesList').innerHTML = D.tickets.length ? D.tickets.map(t => `<button class="row" type="button" data-n="${esc(t.number)}">
-    <div class="l"><b>${esc(t.client || 'Venta ' + t.number)}</b><small>N° ${esc(t.number)}, ${fmtDate(t.date)}${t.channel ? ', ' + esc(t.channel) : ''}</small></div>
+    <div class="l"><b>${esc(t.client || 'Venta ' + t.number)}</b><small>N° ${esc(t.number)}, ${fmtDate(t.date)}${t.channel ? ', ' + esc(t.channel) : ''}${t.rows[0] && t.rows[0].payState === 'pending' ? ' · <b class="low">Por cobrar</b>' : ''}</small></div>
     <div class="r"><b class="num">${money(t.total)}</b><small>${t.units} ${t.units === 1 ? 'pieza' : 'piezas'}</small></div></button>`).join('')
     : `<div class="empty"><b>Aún no hay ventas</b>Escanea una pieza en modo Vender o toca “Nueva venta”.</div>`;
 }
@@ -1792,6 +1943,8 @@ function openPurchase(group, firstSku) {
   $('#purNo').value = tk ? (tk.number || '') : '';
   $('#purSupplier').value = tk ? (tk.supplier || '') : '';
   $('#purNotes').value = tk ? (tk.notes || '') : '';
+  { const t2 = T.purchase; if (t2.listUrl) URL.revokeObjectURL(t2.listUrl); t2.listUrl = null; t2.listFile = null; t2.newPieces = []; t2.listExisting = tk ? ((tk.rows.find(r => r.listImg) || {}).listImg || null) : null; renderListSlot(); renderPieces(); }
+  $('#purPayState').value = tk && tk.rows[0] && tk.rows[0].payState === 'credit' ? 'credit' : 'paid'; $('#purDue').value = tk && tk.rows[0] && tk.rows[0].dueDate || ''; syncPurDue();
   if (tk) t.items = tk.rows.map(r => ({ sku: r.sku, qty: num(r.qty), unitCost: num(r.unitCost), notes: r.notes || '' }));
   $('#purAdd').innerHTML = skuOptions();
   $('#purDel').hidden = !tk;
@@ -1803,21 +1956,99 @@ $('#newPur').onclick = () => openPurchase(null);
 $('#scanPur').onclick = () => { scanMode = 'purchase'; startMainScan(); };
 $('#purForm').onsubmit = async e => {
   e.preventDefault();
-  const t = T.purchase; const items = t.items.filter(it => it.sku && num(it.qty) > 0);
-  if (!items.length) { toast('Agrega al menos una pieza'); return; }
+  const t = T.purchase; const items = t.items.filter(it => it.sku && num(it.qty) > 0); const pieces = t.newPieces || [];
+  if (!items.length && !pieces.length) { toast('Agrega al menos una pieza'); return; }
   const date = $('#purDate').value; if (!date) { toast('Elige la fecha'); return; }
   $('#purSave').disabled = true;
   try {
     const group = t.editKey || store.newId();
     const notes = $('#purNotes').value.trim();
-    const header = { group, date, number: $('#purNo').value.trim(), supplier: $('#purSupplier').value.trim() };
+    const header = { group, date, number: $('#purNo').value.trim(), supplier: $('#purSupplier').value.trim(), payState: $('#purPayState').value, dueDate: $('#purPayState').value === 'credit' ? ($('#purDue').value || addDaysISO(date, 15)) : '' };
     const oldRows = t.editKey ? D.ptickets.find(x => x.group === t.editKey)?.rows || [] : [];
     for (const r of oldRows) await store.del('purchases', r.id);
     let k = 0;
-    for (const it of items) await store.set('purchases', 'c_' + store.newId() + (k++), { ...header, sku: it.sku, qty: num(it.qty), unitCost: num(it.unitCost), notes: it.notes && t.editKey ? it.notes : notes, createdAt: Date.now() });
-    $('#dPur').close(); toast(t.editKey ? 'Compra actualizada' : 'Compra registrada: el inventario ya subió');
+    const listImg = t.listFile ? await prepareImage(t.listFile, 1600, 'tickets') : t.listExisting;
+    let firstRow = true; const withList = o => { if (firstRow && listImg) { firstRow = false; return { ...o, listImg }; } firstRow = false; return o; };
+    let pk = 0;
+    for (const p of pieces) {
+      const images = []; for (const f of p.files) images.push(await prepareImage(f));
+      const id = pidOf(p.sku);
+      const pdata = { sku: p.sku, price: p.price, barcode: '', name: p.name, category: p.category, size: p.size, fit: p.fit, color: p.color, refPrice: null, supplier: header.supplier, cost: p.cost, packaging: p.pack, minStock: 0, images, initialStock: 0, order: D.products.reduce((m, q) => Math.max(m, num(q.order)), 0) + 1 + pk++, createdAt: Date.now(), updatedAt: Date.now() };
+      await store.set('products', id, pdata); S.products[id] = pdata;
+      await store.set('purchases', 'c_' + store.newId() + (k++), withList({ ...header, sku: p.sku, qty: p.qty, unitCost: p.cost, notes: notes, createdAt: Date.now() }));
+    }
+    for (const it of items) await store.set('purchases', 'c_' + store.newId() + (k++), withList({ ...header, sku: it.sku, qty: num(it.qty), unitCost: num(it.unitCost), notes: it.notes && t.editKey ? it.notes : notes, createdAt: Date.now() }));
+    $('#dPur').close(); toast(pieces.length ? `Compra registrada: ${pieces.length} ${pieces.length === 1 ? 'pieza nueva' : 'piezas nuevas'} en tu inventario` : (t.editKey ? 'Compra actualizada' : 'Compra registrada: el inventario ya subió'));
   } catch { toast('No se pudo guardar la compra'); }
   finally { $('#purSave').disabled = false; }
+};
+
+/* ===== Piezas nuevas desde la compra + foto de la nota ===== */
+T.purchase.newPieces = []; T.purchase.listFile = null; T.purchase.listExisting = null;
+let pieceFiles = [null, null, null], pieceEditIdx = -1;
+function renderListSlot() {
+  const t = T.purchase; const img = $('#purListImg');
+  const src = t.listFile ? (t.listUrl || (t.listUrl = URL.createObjectURL(t.listFile))) : t.listExisting ? srcOf(t.listExisting) : '';
+  img.src = src || ''; img.hidden = !src; $('#purListTxt').textContent = src ? 'Cambiar foto' : 'Subir foto de la nota o lista'; $('#purListRm').hidden = !src;
+}
+$('#purListIn').onchange = e => { const f = e.target.files[0]; if (!f) return; const t = T.purchase; if (t.listUrl) URL.revokeObjectURL(t.listUrl); t.listUrl = null; t.listFile = f; renderListSlot(); e.target.value = ''; };
+$('#purListRm').onclick = () => { const t = T.purchase; if (t.listUrl) URL.revokeObjectURL(t.listUrl); t.listUrl = null; t.listFile = null; t.listExisting = null; renderListSlot(); };
+function renderPieces() {
+  const arr = T.purchase.newPieces;
+  $('#purNew').innerHTML = arr.length ? arr.map((p, i) => `<div class="it" data-i="${i}"><img class="thumb sm" src="${esc(p.urls[0] || PLACEHOLDER)}" alt="">
+    <div class="it-main"><b>${esc(p.name || p.sku)}</b><small>${esc(p.sku)}${p.size ? ', ' + esc(p.size) : ''} · ${p.qty} ${p.qty === 1 ? 'pieza' : 'piezas'} · costo ${money(p.cost)} · venta ${money(p.price)}</small>
+    <div class="it-f"><button type="button" class="linkbtn" data-edit="${i}">Editar</button></div></div>
+    <button type="button" class="x" data-rmp="${i}" aria-label="Quitar">×</button></div>`).join('') : '<p class="hint" style="margin:0">Aquí aparecen las piezas nuevas que vas a dar de alta con esta compra.</p>';
+  updateTotal('purchase');
+}
+$('#purNew').addEventListener('click', e => {
+  const r = e.target.closest('[data-rmp]'); if (r) { const a = T.purchase.newPieces; a.splice(+r.dataset.rmp, 1); renderPieces(); return; }
+  const ed = e.target.closest('[data-edit]'); if (ed) openPiece(+ed.dataset.edit);
+});
+function lastDefaults() { const ps = D.products.slice().sort((a, b) => num(b.createdAt) - num(a.createdAt)); return ps[0] || {}; }
+function renderPieceSlots() {
+  $$('#pcSlots .slot').forEach((lab, i) => { const im = lab.querySelector('img'); const f = pieceFiles[i]; if (f) { if (!f.url) f.url = URL.createObjectURL(f.file); im.src = f.url; im.style.display = ''; lab.querySelector('span').hidden = true; } else { im.removeAttribute('src'); im.style.display = 'none'; lab.querySelector('span').hidden = false; } });
+}
+$$('#pcSlots .slot input').forEach((inp, i) => inp.onchange = () => { const f = inp.files[0]; if (!f) return; pieceFiles[i] = { file: f, url: null }; renderPieceSlots(); $('#pcSlots').classList.remove('bad'); inp.value = ''; });
+function pcSuggest() {
+  const cost = num($('#pcCost').value), pack = num($('#pcPack').value); const box = $('#pcSugg');
+  if (cost <= 0) { box.hidden = true; return; }
+  const am = avgMargin($('#pcCat').value); const m = Math.min(0.9, Math.max(0.05, am.m));
+  const price = up9((cost + pack) / (1 - m)); box.hidden = false; box.dataset.v = price;
+  box.textContent = `Precio sugerido: ${money(price)} (según tu margen promedio). Toca para usarlo`;
+}
+$('#pcSugg').onclick = () => { $('#pcPrice').value = $('#pcSugg').dataset.v; $('#pcPrice').classList.remove('bad'); };
+['#pcCost', '#pcPack', '#pcCat'].forEach(s => $(s).addEventListener('input', pcSuggest));
+function openPiece(idx) {
+  pieceEditIdx = idx; const p = idx >= 0 ? T.purchase.newPieces[idx] : null; const L = lists(); const d = lastDefaults();
+  $('#pcErr').hidden = true; $$('#pForm2 .bad, #pcSlots.bad').forEach(x => x.classList.remove('bad')); $('#pcSlots').classList.remove('bad');
+  pieceFiles = [0, 1, 2].map(i => p && p.files[i] ? { file: p.files[i], url: p.urls[i] } : null);
+  $('#pcCat').innerHTML = opts(L.categories, p ? p.category : (d.category || ''), 'Sin categoría');
+  $('#pcSize').innerHTML = opts(L.sizes, p ? p.size : 'Unitalla', 'Sin talla');
+  $('#pcSku').value = p ? p.sku : ''; $('#pcName').value = p ? p.name : ''; $('#pcFit').value = p ? p.fit : ''; $('#pcColor').value = p ? p.color : '';
+  $('#pcCost').value = p ? p.cost : ''; $('#pcPack').value = p ? p.pack : (lsGet('lastPack', d.packaging || '') || ''); $('#pcPrice').value = p ? p.price : ''; $('#pcQty').value = p ? p.qty : '';
+  $('#pcTitle').textContent = p ? 'Editar pieza nueva' : 'Pieza nueva';
+  renderPieceSlots(); pcSuggest();
+  $('#dPiece').showModal();
+}
+$('#purNewBtn').onclick = () => openPiece(-1);
+function pcErr(msg, el) { const b = $('#pcErr'); b.textContent = msg; b.hidden = false; if (el) { el.classList.add('bad'); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } toast(msg); }
+$('#pForm2').addEventListener('input', e => { e.target.classList && e.target.classList.remove('bad'); });
+$('#pForm2').onsubmit = e => {
+  e.preventDefault(); $('#pcErr').hidden = true;
+  const sku = $('#pcSku').value.trim().toUpperCase(); const files = pieceFiles.filter(Boolean);
+  if (!files.length) return pcErr('Agrega al menos 1 foto', $('#pcSlots'));
+  if (!sku) return pcErr('Escribe el SKU', $('#pcSku'));
+  if (S.products[pidOf(sku)]) return pcErr('Ese SKU ya existe en tu inventario', $('#pcSku'));
+  if (T.purchase.newPieces.some((p, i) => i !== pieceEditIdx && p.sku === sku)) return pcErr('Ya agregaste ese SKU en esta compra', $('#pcSku'));
+  if (!$('#pcName').value.trim()) return pcErr('Escribe el nombre de la prenda', $('#pcName'));
+  if ($('#pcCost').value === '') return pcErr('Escribe el costo', $('#pcCost'));
+  if ($('#pcPrice').value === '') return pcErr('Escribe el precio de venta', $('#pcPrice'));
+  const qty = parseInt($('#pcQty').value, 10); if (!(qty > 0)) return pcErr('Escribe la cantidad', $('#pcQty'));
+  const piece = { sku, name: $('#pcName').value.trim(), category: $('#pcCat').value, size: $('#pcSize').value, fit: $('#pcFit').value.trim(), color: $('#pcColor').value.trim(), cost: Math.max(0, num($('#pcCost').value)), pack: Math.max(0, num($('#pcPack').value)), price: Math.max(0, num($('#pcPrice').value)), qty, files: files.map(f => f.file), urls: files.map(f => f.url) };
+  lsSet('lastPack', piece.pack);
+  const a = T.purchase.newPieces; if (pieceEditIdx >= 0) a[pieceEditIdx] = piece; else a.push(piece);
+  $('#dPiece').close(); renderPieces();
 };
 $('#purDel').onclick = async () => {
   const g = T.purchase.editKey; if (!g || !confirm('¿Eliminar esta compra? Las piezas se restan del inventario.')) return;
@@ -1827,7 +2058,7 @@ function renderPurchases() {
   const y = year(); const yr = D.ptickets.filter(t => String(t.date).startsWith(String(y)));
   $('#purStats').textContent = D.ptickets.length ? `${yr.length} compras en ${y}, total ${money(yr.reduce((s, t) => s + t.total, 0))}` : '';
   $('#purList').innerHTML = D.ptickets.length ? D.ptickets.map(t => `<button class="row" type="button" data-g="${esc(t.group)}">
-    <div class="l"><b>${esc(t.supplier || 'Compra')}${t.number ? ', nota ' + esc(t.number) : ''}</b><small>${fmtDate(t.date)}, ${t.rows.length} ${t.rows.length === 1 ? 'modelo' : 'modelos'}</small></div>
+    <div class="l"><b>${esc(t.supplier || 'Compra')}${t.number ? ', nota ' + esc(t.number) : ''}</b><small>${fmtDate(t.date)}, ${t.rows.length} ${t.rows.length === 1 ? 'modelo' : 'modelos'}${t.rows[0] && t.rows[0].payState === 'credit' ? ' · <b class="low">A crédito</b>' : ''}</small></div>
     <div class="r"><b class="num">${money(t.total)}</b><small>${t.units} ${t.units === 1 ? 'pieza' : 'piezas'}</small></div></button>`).join('')
     : `<div class="empty"><b>Aún no hay compras</b>Cuando te llegue mercancía, escanea las piezas o toca “Nueva compra”.</div>`;
 }
