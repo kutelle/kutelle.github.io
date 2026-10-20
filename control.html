@@ -341,6 +341,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <div class="fin-hero num" id="finStatus"></div>
     <h3>Lo que puedes usar hoy</h3>
     <div class="kv num" id="finAvail"></div>
+    <div id="finPend"></div>
     <div class="bar w" style="margin-top:10px"><button class="btn primary" id="newWd" type="button">Registrar lo que tomé para mí</button></div>
     <h3>Cómo se reparte tu dinero</h3>
     <p class="hint" id="finModeHint" style="margin:-2px 2px 10px"></p>
@@ -461,6 +462,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     </div>
     <div class="stock"><b class="num" id="dQty"></b><span id="dQtyLbl"></span></div>
     <div class="breakdown num" id="dBreak"></div>
+    <div class="hint" id="dHeld" hidden style="margin:6px 0 0"></div>
     <div class="mover w">
       <button class="btn out" id="dSell" type="button">Vender</button>
       <button class="btn in" id="dBuy" type="button">Registrar compra</button>
@@ -470,7 +472,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <button class="btn" id="btnLabel" type="button" style="width:100%" hidden>Guardar etiqueta para imprimir</button>
     <h3 id="dHistT" hidden>Últimos movimientos</h3>
     <div id="dHist" class="num"></div>
-    <div class="actions w"><button class="btn" id="btnEdit" type="button">Editar producto</button></div>
+    <div class="actions w"><button class="btn" id="btnHold" type="button">Sacar de inventario</button><button class="btn" id="btnUnhold" type="button" hidden>Reincorporar</button><button class="btn" id="btnEdit" type="button">Editar producto</button></div>
   </div>
 </dialog>
 
@@ -705,6 +707,18 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     </div>
     <label class="lbl" for="wdNote">Nota (opcional)</label><input class="field" id="wdNote" maxlength="120" placeholder="Ej. mi sueldo de octubre">
     <div class="actions"><button type="button" class="btn danger" id="wdDel" hidden>Eliminar</button><button class="btn primary" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+
+<!-- Sacar / reincorporar pieza sin venta -->
+<dialog id="dHold" aria-labelledby="holdTitle">
+  <div class="dhead"><h2 id="holdTitle">Sacar de inventario</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <form class="dbody" id="holdForm" autocomplete="off" novalidate>
+    <p class="hint" id="holdHint" style="margin-top:0"></p>
+    <label class="lbl" for="holdQty">Cantidad de piezas</label><input class="field num" id="holdQty" type="number" min="1" step="1" inputmode="numeric">
+    <div id="holdReasonWrap"><label class="lbl" for="holdReason">Motivo</label><select class="field" id="holdReason"><option>En reparación</option><option>Dañada</option><option>Extraviada</option><option>Otro</option></select></div>
+    <label class="lbl" for="holdNote">Nota (opcional)</label><input class="field" id="holdNote" maxlength="120" placeholder="Ej. la llevé a arreglar el cierre">
+    <div class="actions"><button class="btn primary" type="submit" id="holdSave">Sacar de inventario</button></div>
   </form>
 </dialog>
 
@@ -1272,7 +1286,7 @@ function renderInv() {
   list.innerHTML = rows.map(p => `
     <button class="item" data-id="${esc(p.id)}" type="button">
       <img class="thumb" src="${esc(imgSrc(p))}" alt="" loading="lazy">
-      <div class="meta"><div class="name">${esc(titleOf(p))}</div><div class="sub">${esc(subOf(p))}<br><span class="num">${money(p.price)}</span>${p.barcode ? '' : ' <span class="nocode">Sin código</span>'}</div></div>
+      <div class="meta"><div class="name">${esc(titleOf(p))}</div><div class="sub">${esc(subOf(p))}<br><span class="num">${money(p.price)}</span>${p.barcode ? '' : ' <span class="nocode">Sin código</span>'}${num(p.held) > 0 ? ' <span class="nocode">Fuera: ' + num(p.held) + '</span>' : ''}</div></div>
       <div class="qty"><b class="num ${level(p)}">${p.stock}</b><small>disp.</small></div>
     </button>`).join('');
 }
@@ -1303,7 +1317,11 @@ function renderDetail() {
   $('#dMargin').textContent = num(p.price) ? Math.round((num(p.price) - num(p.cost) - num(p.packaging)) / num(p.price) * 100) + '%' : '—';
   $('#dQty').textContent = p.stock; $('#dQty').className = 'num ' + level(p);
   $('#dQtyLbl').textContent = (p.stock === 1 ? 'pieza disponible' : 'piezas disponibles') + (p.status === 'Reordenar' ? ', reordenar' : '');
-  $('#dBreak').textContent = `Inicial ${num(p.initialStock)}, compradas ${p.bought}, vendidas ${p.sold}, devueltas ${p.back}`;
+  const held = Math.max(0, num(p.held));
+  $('#dBreak').textContent = `Inicial ${num(p.initialStock) + held}, compradas ${p.bought}, vendidas ${p.sold}, devueltas ${p.back}` + (held ? `, fuera de inventario ${held}` : '');
+  $('#dHeld').hidden = !held;
+  $('#dHeld').textContent = held ? `${held} ${held === 1 ? 'pieza está fuera' : 'piezas están fuera'} del inventario${heldReason(p.sku) ? ' (' + heldReason(p.sku).toLowerCase() + ')' : ''}. No cuenta como venta. Cuando esté lista, toca “Reincorporar”.` : '';
+  $('#btnHold').disabled = p.stock <= 0; $('#btnUnhold').hidden = !held;
   $('#dSell').disabled = p.stock <= 0;
   const has = !!p.barcode;
   $('#dBcBox').hidden = !has; $('#dNoCode').hidden = has;
@@ -1313,6 +1331,7 @@ function renderDetail() {
   for (const r of Object.values(S.purchases)) if (r.sku === p.sku) mv.push({ date: r.date, c: r.createdAt || 0, t: 'Compra', d: num(r.qty) });
   for (const r of Object.values(S.sales)) if (r.sku === p.sku) mv.push({ date: r.date, c: r.createdAt || 0, t: 'Venta ' + r.number, d: -num(r.qty) });
   for (const r of Object.values(S.returns)) if (r.sku === p.sku) mv.push({ date: r.date, c: r.createdAt || 0, t: 'Devolución', d: r.back === 'Sí' ? num(r.qty) : 0 });
+  for (const r of Object.values(S.config)) if (r && r.kind === 'hold' && r.sku === p.sku) mv.push({ date: r.date, c: r.createdAt || 0, t: r.qty > 0 ? 'Fuera de inventario' + (r.reason ? ' (' + r.reason.toLowerCase() + ')' : '') : 'Reincorporada', d: -num(r.qty) });
   mv.sort((x, y) => String(y.date).localeCompare(String(x.date)) || y.c - x.c);
   $('#dHistT').hidden = !mv.length;
   $('#dHist').innerHTML = mv.slice(0, 8).map(m => `<div class="hrow"><span>${fmtDate(m.date)}</span><span>${esc(m.t)} ${m.d > 0 ? '+' : ''}${m.d}</span></div>`).join('');
@@ -1332,6 +1351,43 @@ $('#dGallery').addEventListener('scroll', () => {
 $('#dSell').onclick = () => { const p = D.products.find(x => x.id === currentId); if (p) openSale(null, p.sku); };
 $('#dBuy').onclick = () => { const p = D.products.find(x => x.id === currentId); if (p) openPurchase(null, p.sku); };
 $('#btnEdit').onclick = () => { $('#dDetail').close(); openForm(currentId); };
+/* Sacar una pieza del inventario sin registrar venta (reparación, daño...) y reincorporarla después.
+   Baja o sube el stock inicial del producto, así el catálogo público también la ve agotada / disponible. */
+const heldReason = sku => { const l = Object.values(S.config).filter(v => v && v.kind === 'hold' && v.sku === sku && v.qty > 0).sort((a, b) => num(b.createdAt) - num(a.createdAt))[0]; return l ? (l.reason || '') : ''; };
+let holdMode = 'out';
+function openHold(mode) {
+  const p = D.products.find(x => x.id === currentId); if (!p) return;
+  const max = mode === 'out' ? p.stock : num(p.held); if (max <= 0) return;
+  holdMode = mode; const out = mode === 'out';
+  $('#holdTitle').textContent = out ? 'Sacar de inventario' : 'Reincorporar al inventario';
+  $('#holdHint').textContent = out ? 'La pieza deja de aparecer como disponible (en el catálogo sale Agotado) sin registrar una venta y sin afectar tus finanzas. Cuando esté lista, la reincorporas.' : 'La pieza vuelve a contar como disponible, también en el catálogo.';
+  $('#holdQty').value = 1; $('#holdQty').max = max;
+  $('#holdReasonWrap').hidden = !out; $('#holdReason').value = 'En reparación'; $('#holdNote').value = '';
+  $('#holdSave').textContent = out ? 'Sacar de inventario' : 'Reincorporar'; $('#holdSave').disabled = false;
+  $('#dHold').showModal();
+}
+$('#btnHold').onclick = () => openHold('out');
+$('#btnUnhold').onclick = () => openHold('in');
+$('#holdForm').onsubmit = async e => {
+  e.preventDefault();
+  const p = D.products.find(x => x.id === currentId); if (!p) return;
+  const out = holdMode === 'out', max = out ? p.stock : num(p.held), q = parseInt($('#holdQty').value, 10);
+  if (!(q >= 1) || q > max) { toast('Escribe una cantidad entre 1 y ' + max); return; }
+  $('#holdSave').disabled = true;
+  try {
+    const cur = (await store.get('products', p.id)) || {};
+    cur.held = Math.max(0, num(cur.held) + (out ? q : -q));
+    cur.initialStock = num(cur.initialStock) + (out ? -q : q);
+    cur.updatedAt = Date.now();
+    await store.set('products', p.id, cur);
+    const id = 'adj_' + store.newId();
+    const log = { kind: 'hold', sku: p.sku, qty: out ? q : -q, date: today(), reason: out ? $('#holdReason').value : '', note: $('#holdNote').value.trim(), createdAt: Date.now() };
+    try { await store.set('config', id, log); S.config[id] = log; } catch {}
+    S.products[p.id] = cur; derive(); renderAll();
+    $('#dHold').close(); toast(out ? 'Pieza fuera de inventario' : 'Pieza reincorporada');
+  } catch { toast('No se pudo guardar'); }
+  finally { $('#holdSave').disabled = false; }
+};
 $('#dAssign').onclick = () => {
   const id = currentId;
   openScanner(async code => { await closeScanner(); await assignCode(id, code); }, false);
@@ -1410,7 +1466,7 @@ function openForm(id, code) {
   $('#fCode').value = p?.barcode || code || ''; codeUi();
   $('#fNewQty').hidden = !!p; $('#fInitBox').hidden = !p;
   $('#fQty').value = ''; $('#fQtyType').value = 'compra'; $('#fPurNo').value = ''; $('#fQtyType').onchange();
-  $('#fInit').value = p ? num(p.initialStock) : 0;
+  $('#fInit').value = p ? num(p.initialStock) + num(p.held) : 0;
   const last = D.products[D.products.length - 1];
   $('#fName').value = p?.name || '';
   $('#fCat').innerHTML = opts(L.categories, p?.category || '', 'Sin categoría');
@@ -1491,7 +1547,7 @@ $('#pForm').onsubmit = async e => {
       name: $('#fName').value.trim(), category: $('#fCat').value, size: $('#fSize').value, fit: $('#fFit').value.trim(), color: $('#fColor').value.trim(),
       refPrice: num($('#fRef').value) || null, supplier: $('#fSupplier').value.trim(), cost: Math.max(0, num($('#fCost').value)), packaging: Math.max(0, num($('#fPack').value)),
       minStock: Math.max(0, parseInt($('#fMin').value, 10) || 0), images,
-      initialStock: isNew ? (asPurchase ? 0 : qty) : Math.max(0, parseInt($('#fInit').value, 10) || 0),
+      initialStock: isNew ? (asPurchase ? 0 : qty) : Math.max(0, parseInt($('#fInit').value, 10) || 0) - num(prev.held),
       order: prev.order ?? (D.products.reduce((m, p) => Math.max(m, num(p.order)), 0) + 1),
       createdAt: prev.createdAt || Date.now(), updatedAt: Date.now()
     };
@@ -2519,8 +2575,14 @@ function computeFinance() {
   const F = finCfg();
   const sum = (a, f) => a.reduce((t, x) => t + f(x), 0);
   const costOf = sku => { const p = D.bySku[sku]; return p ? num(p.cost) + num(p.packaging) : 0; };
-  const rev = r => num(r.qty) * num(r.unitPrice) - num(r.discount);
-  const cogs = r => num(r.qty) * costOf(r.sku);
+  // Ventas "pendientes de pago": solo cuenta la parte ya cobrada (abonos); lo demás va aparte, como "por cobrar".
+  const C = cuentas(); const fr = {};
+  C.all.ar.forEach(x => { fr[String(x.ref)] = x.total > 0 ? Math.max(0, Math.min(1, x.paid / x.total)) : 1; });
+  const fOf = r => Object.prototype.hasOwnProperty.call(fr, String(r.number)) ? fr[String(r.number)] : 1;
+  const revAll = r => num(r.qty) * num(r.unitPrice) - num(r.discount);
+  const cogsAll = r => num(r.qty) * costOf(r.sku);
+  const rev = r => revAll(r) * fOf(r);
+  const cogs = r => cogsAll(r) * fOf(r);
   const back = r => r.back === 'Sí' ? num(r.qty) * num(D.bySku[r.sku]?.cost) : 0;
   const pur = r => num(r.qty) * num(r.unitCost);
   const V = Object.values(S.sales), R = Object.values(S.returns), P = Object.values(S.purchases), G = Object.values(S.expenses), E = Object.values(S.shipments), W = Object.values(S.withdrawals);
@@ -2560,6 +2622,10 @@ function computeFinance() {
     { key: 'ahorro', name: 'Ahorro y emergencias', why: 'Para un mes flojo, una oportunidad o un imprevisto. No se toca.', pct: Math.round(pctUse.ahorro * 100), assigned: g0 * pctUse.ahorro, used: 0, usedLbl: 'Usado' }
   ];
   buckets.forEach(b => b.avail = b.assigned - b.used);
+  // Lo que todavía no se cobra (no entra en lo disponible)
+  const gPend = sum(Vs, r => (revAll(r) - cogsAll(r)) * (1 - fOf(r))), rPend = sum(Vs, r => cogsAll(r) * (1 - fOf(r))), gp0 = Math.max(0, gPend);
+  const pend = { count: C.ar.length, cobrar: sum(C.ar, x => Math.max(0, x.bal)), ganancia: gPend, reposicion: rPend,
+    merc: rPend + gp0 * pctUse.reinv, gastos: gp0 * pctUse.gastos, ti: gp0 * pctUse.ti, ahorro: gp0 * pctUse.ahorro };
   // Months of selected year
   const y = year();
   const months = MONTHS.map((name, i) => {
@@ -2571,7 +2637,7 @@ function computeFinance() {
     const w = sum(W.filter(r => inM(r.date)), r => num(r.amount));
     return { name, v, gp, c, g, w, flujo: v - c - g };
   });
-  return { F, startEff, autoStart: !F.start, entradas, salidas, retiros, balance, invCost, invPrice, pace, reposicion, ganancia, buckets, months, any: V.length + P.length + G.length > 0 };
+  return { F, startEff, autoStart: !F.start, entradas, salidas, retiros, balance, invCost, invPrice, pace, reposicion, ganancia, buckets, months, pend, any: V.length + P.length + G.length > 0 };
 }
 function renderFinance() {
   const f = computeFinance();
@@ -2587,11 +2653,11 @@ function renderFinance() {
     st.innerHTML = `<small>Recuperando tu inversión</small><div class="big">Te faltan ${money(falta)}</div>
       <div class="meter" role="img" aria-label="${pct}% recuperado"><i style="width:${pct}%"></i></div>
       <p>Llevas el <b>${pct}%</b>. Has metido ${money(f.salidas)} al negocio y han entrado ${money(f.entradas)}.</p>
-      <p>Además tienes ${money(f.invCost)} en mercancía a costo; vendida a su precio serían ${money(f.invPrice)}.</p>${est ? `<p>${est}</p>` : ''}`;
+      <p>Además tienes ${money(f.invCost)} en mercancía a costo; vendida a su precio serían ${money(f.invPrice)}.</p>${f.pend.cobrar > 0 ? `<p>Aparte, te deben ${money(f.pend.cobrar)} de ventas sin cobrar; todavía no cuentan aquí.</p>` : ''}${est ? `<p>${est}</p>` : ''}`;
   } else {
     st.innerHTML = `<small>¿Ya tienes ganancias?</small><div class="big">¡Sí! ${money(f.balance)}</div>
       <div class="meter"><i style="width:100%"></i></div>
-      <p>Ya recuperaste todo lo que metiste al negocio: entraron ${money(f.entradas)} y salieron ${money(f.salidas)}. Desde aquí, lo que sobra es ganancia.</p>
+      <p>Ya recuperaste todo lo que metiste al negocio: entraron ${money(f.entradas)} y salieron ${money(f.salidas)}. Desde aquí, lo que sobra es ganancia.</p>${f.pend.cobrar > 0 ? `<p>Aparte, te deben ${money(f.pend.cobrar)} de ventas sin cobrar; todavía no cuentan aquí.</p>` : ''}
       ${f.F.mode === 'arranque' && canWrite ? '<button class="btn" type="button" id="toReparto">Pasar a Crecimiento y empezar a pagarme</button>' : ''}`;
     const b = $('#toReparto'); if (b) b.onclick = () => saveFin({ ...f.F, mode: 'reparto', start: today() }, 'Listo: desde hoy se reparte tu ganancia');
   }
@@ -2599,6 +2665,10 @@ function renderFinance() {
   const show = v => v < 0 ? `<span class="zero">${money(v)}</span>` : money(v);
   $('#finAvail').innerHTML = [['Para comprar mercancía', B.merc.avail], ['Para gastos del negocio', B.gastos.avail], ['Para ti', B.ti.avail], ['Ahorro guardado', B.ahorro.assigned]]
     .map(([l, v]) => `<div><span>${l}</span><span>${show(v)}</span></div>`).join('');
+  const pe = f.pend;
+  $('#finPend').innerHTML = pe.count && pe.cobrar > 0.005 ? `<h3>Por cobrar (todavía no lo puedes usar)</h3><div class="kv num">` +
+    [[`Te deben (${pe.count} ${pe.count === 1 ? 'venta' : 'ventas'})`, pe.cobrar], ['Ganancia que entrará', pe.ganancia], ['Para mercancía, al cobrar', pe.merc], ['Para gastos del negocio, al cobrar', pe.gastos], ...(f.F.mode === 'reparto' ? [['Para ti, al cobrar', pe.ti], ['Ahorro, al cobrar', pe.ahorro]] : [])]
+      .map(([l, v]) => `<div><span>${l}</span><span>${money(v)}</span></div>`).join('') + `</div><p class="hint" style="margin:6px 2px 0">Esto no está sumado arriba. Conforme registres los cobros o abonos en “Por cobrar”, pasa a lo que puedes usar.</p>` : '';
   $('#finModeHint').textContent = (f.F.mode === 'arranque' ? 'Etapa de arranque: toda la ganancia se reinvierte hasta que recuperes tu inversión.' : 'Etapa de crecimiento: tu ganancia se reparte según tu plan.') +
     ` Contando desde ${f.autoStart ? 'tu primera venta, el ' : 'el '}${fmtDate(f.startEff)} (lo anterior es tu inversión inicial): ganancia de ${money(f.ganancia)} y ${money(f.reposicion)} apartados para resurtir.`;
   $('#finBuckets').innerHTML = f.buckets.filter(b => b.key !== 'ti' || f.F.mode === 'reparto' || b.used > 0).map(b => {
@@ -2610,7 +2680,7 @@ function renderFinance() {
   }).join('');
   $('#finMonthT').textContent = 'Por mes en ' + year();
   const t = k => f.months.reduce((s, m) => s + m[k], 0);
-  $('#finMonths').innerHTML = `<tr><th>Mes</th><th>Ventas</th><th>Ganancia</th><th>Compras</th><th>Gastos</th><th>Para ti</th><th>Flujo</th></tr>` +
+  $('#finMonths').innerHTML = `<tr><th>Mes</th><th>Ventas cobradas</th><th>Ganancia</th><th>Compras</th><th>Gastos</th><th>Para ti</th><th>Flujo</th></tr>` +
     f.months.map(m => `<tr><td>${m.name}</td><td>${money(m.v)}</td><td>${money(m.gp)}</td><td>${money(m.c)}</td><td>${money(m.g)}</td><td>${money(m.w)}</td><td>${m.flujo < 0 ? `<span class="zero">${money(m.flujo)}</span>` : money(m.flujo)}</td></tr>`).join('') +
     `<tr class="tot"><td>Total</td><td>${money(t('v'))}</td><td>${money(t('gp'))}</td><td>${money(t('c'))}</td><td>${money(t('g'))}</td><td>${money(t('w'))}</td><td>${money(t('flujo'))}</td></tr>`;
   const rows = Object.entries(S.withdrawals).sort((a, b) => String(b[1].date).localeCompare(String(a[1].date)));
