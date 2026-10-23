@@ -573,6 +573,14 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <label class="lbl" for="saleShipMode">Envío</label>
     <select class="field" id="saleShipMode"><option value="none">Sin costo de envío (punto medio)</option><option value="free">Envío gratis (llegó a $999)</option><option value="paid">Envío a domicilio: $40</option></select>
     <p class="hint" id="saleShipHint"></p>
+    <div id="saleShipBox" hidden>
+      <label class="lbl" for="saleAddr" style="margin-top:0">Dirección de entrega</label><input class="field" id="saleAddr" maxlength="200" placeholder="Calle, número, colonia">
+      <div class="row2">
+        <div><label class="lbl" for="saleCity">Ciudad</label><input class="field" id="saleCity" maxlength="60"></div>
+        <div><label class="lbl" for="salePhone">WhatsApp de la clienta</label><input class="field" id="salePhone" type="tel" maxlength="30" inputmode="tel"></div>
+      </div>
+      <p class="hint">Al guardar, se crea solo el registro del envío en Ventas → Envíos.</p>
+    </div>
     <div class="total"><span id="saleSub"></span><b class="num" id="saleTotal"></b></div>
     <div class="kv num" id="saleCalc" style="margin-top:10px"></div>
     <p class="hint" id="saleWarn" style="font-weight:600"></p>
@@ -636,6 +644,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     </div>
     <label class="lbl" for="shipDelivered">Fecha de entrega</label><input class="field" type="date" id="shipDelivered">
     <label class="lbl" for="shipNotes">Notas</label><input class="field" id="shipNotes" maxlength="200">
+    <button type="button" class="btn" id="shipWa" style="width:100%;margin-top:12px">Avisar a la clienta por WhatsApp</button>
     <div class="actions"><button type="button" class="btn danger" id="shipDel" hidden>Eliminar</button><button class="btn primary" type="submit">Guardar envío</button></div>
   </form>
 </dialog>
@@ -902,7 +911,7 @@ const DEFAULT_LISTS = {
   sizes: ['Unitalla','XS','S','M','L','XL','XXL'],
   channels: ['Instagram','Facebook','WhatsApp','TikTok','Sitio web','Tienda física'],
   payments: ['Transferencia','Efectivo','Tarjeta','Contra entrega','Link de pago'],
-  carriers: ['Mensajería propia','Empresa de envío 1','Empresa de envío 2','Retiro en persona'],
+  carriers: ['Mensajería propia','Estafeta','DHL','FedEx','Paquetexpress','Retiro en persona'],
   shipStatus: ['Pendiente','Enviado','Entregado','Devuelto'],
   returnReasons: ['Talla incorrecta','Defecto','No le gustó','Producto equivocado','Llegó dañado','Otro'],
   returnStatus: ['Pendiente','Reembolsado','Cambio realizado','Rechazada'],
@@ -1735,9 +1744,11 @@ function openSale(number, firstSku) {
   const pcts = tk ? [...new Set(tk.rows.map(r => r.discountPct || ''))] : [''];
   $('#salePct').value = pcts.length === 1 && pcts[0] ? pcts[0] : ''; syncPctChips();
   $('#saleShipMode').value = tk && tk.rows[0] && tk.rows[0].shipMode ? tk.rows[0].shipMode : 'none';
+  { const sh = tk ? Object.values(S.shipments).find(x => String(x.saleNo) === tk.number) : null; $('#saleAddr').value = sh ? (sh.address || '') : ''; $('#saleCity').value = sh ? (sh.city || '') : 'León'; $('#salePhone').value = sh ? (sh.phone || '') : ''; }
   $('#salePayState').value = tk && tk.rows[0] && tk.rows[0].payState === 'pending' ? 'pending' : 'paid'; $('#saleDue').value = tk && tk.rows[0] && tk.rows[0].dueDate || ''; syncSaleDue();
   $('#saleAdd').innerHTML = skuOptions();
   $('#saleExtra').hidden = !tk || !canWrite; $('#saleDel').hidden = !tk; $('#saleTicket').hidden = !tk;
+  $('#saleShipBox').hidden = $('#saleShipMode').value === 'none';
   renderItems('sale');
   if (firstSku) addItem('sale', firstSku);
   if (!$('#dSale').open) $('#dSale').showModal();
@@ -1762,6 +1773,12 @@ $('#saleForm').onsubmit = async e => {
     if (t.editKey) for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === t.editKey) await store.del('sales', id);
     let k = 0;
     for (const it of items) await store.set('sales', 'v_' + store.newId() + (k++), { ...header, sku: it.sku, qty: num(it.qty), unitPrice: num(it.unitPrice), discount: num(it.discount), discountPct: salePct() || null, createdAt: Date.now() });
+    if (header.shipMode !== 'none') {
+      const prev = Object.entries(S.shipments).find(([, x]) => String(x.saleNo) === t.editKey || String(x.saleNo) === number);
+      const sid = prev ? prev[0] : 'e_' + store.newId(); const base = prev ? prev[1] : { carrier: lists().carriers[0], status: lists().shipStatus[0], cost: 0, notes: '', tracking: '', deliveredDate: '', date, createdAt: Date.now() };
+      await store.set('shipments', sid, { ...base, saleNo: number, address: $('#saleAddr').value.trim(), city: $('#saleCity').value.trim(), phone: $('#salePhone').value.trim(), charged: header.shipFee });
+      if (!$('#saleAddr').value.trim()) toast('Falta la dirección de entrega: agrégala en Ventas → Envíos');
+    }
     $('#dSale').close(); toast(t.editKey ? 'Venta actualizada' : 'Venta registrada');
     try { showTicket({ ...header, rows: items.map(it => ({ sku: it.sku, qty: num(it.qty), unitPrice: num(it.unitPrice), discount: num(it.discount) })), pct: salePct() || 0 }); } catch (err) { console.error(err); }
   } catch { toast('No se pudo guardar la venta'); }
@@ -1848,7 +1865,7 @@ function saleToTicket(number) {
   const pcts = [...new Set(tk.rows.map(r => r.discountPct || 0))];
   return { number: tk.number, date: tk.date, client: tk.client, rows: tk.rows, shipMode: (tk.rows[0] || {}).shipMode, shipFee: (tk.rows[0] || {}).shipFee, pct: pcts.length === 1 ? pcts[0] : 0 };
 }
-$('#saleShipMode').onchange = () => updateTotal('sale'); $('#saleChannel').addEventListener('change', () => updateTotal('sale'));
+$('#saleShipMode').onchange = () => { $('#saleShipBox').hidden = $('#saleShipMode').value === 'none'; updateTotal('sale'); }; $('#saleChannel').addEventListener('change', () => updateTotal('sale'));
 $('#saleTicket').onclick = () => { const t = saleToTicket(T.sale.editKey); if (t) showTicket(t); else toast('No se encontró la venta'); };
 $('#tkSave').onclick = () => { if (!tkBlob) return; const a = document.createElement('a'); a.href = tkUrl; a.download = tkName; document.body.appendChild(a); a.click(); a.remove(); };
 $('#tkShare').onclick = async () => {
@@ -2105,6 +2122,26 @@ $('#shipForm').onsubmit = async e => {
     createdAt: shipEdit ? (S.shipments[shipEdit]?.createdAt || Date.now()) : Date.now() };
   lsSet('lastCarrier', data.carrier);
   try { await store.set('shipments', shipEdit || 'e_' + store.newId(), data); $('#dShip').close(); toast('Envío guardado'); } catch { toast('No se pudo guardar el envío'); }
+};
+
+/* WhatsApp: aviso de envío con guía y enlace de rastreo */
+const TRACK_URL = [['dhl', n => 'https://www.dhl.com/mx-es/home/rastreo.html?tracking-id=' + n], ['fedex', n => 'https://www.fedex.com/fedextrack/?trknbr=' + n]];
+function trackLink(carrier, n) { const c = String(carrier || '').toLowerCase(); const f = TRACK_URL.find(([k]) => c.includes(k)); return f && n ? f[1](encodeURIComponent(n)) : ''; }
+function waNumber(ph) { let d = String(ph || '').replace(/\D/g, ''); if (d.length === 10) d = '52' + d; else if (d.length === 13 && d.startsWith('521')) d = '52' + d.slice(3); return d; }
+function shipMessage(r) {
+  const tk = D.tickets.find(t => t.number === String(r.saleNo)); const nm = tk && tk.client ? ' ' + tk.client.split(' ')[0] : '';
+  const store_ = storeName(); const own = /propia|retiro/i.test(r.carrier || '') || !r.carrier;
+  if (r.status === 'Entregado') return `Hola${nm}, ¡gracias por tu compra en ${store_}! Esperamos que tus prendas te encanten ♡ Si quieres, mándanos una foto usándolas.`;
+  if (own) return r.status === 'Enviado' ? `Hola${nm}, tu pedido de ${store_} ya va en camino ♡ Te aviso cuando esté llegando.` : `Hola${nm}, tu pedido de ${store_} ya está listo ♡ ¿Coordinamos la entrega${r.address ? ' en ' + r.address : ''}?`;
+  const link = trackLink(r.carrier, r.tracking);
+  if (!r.tracking) return `Hola${nm}, tu pedido de ${store_} está listo para enviarse con ${r.carrier}. En cuanto tenga número de guía te lo comparto ♡`;
+  return `Hola${nm}, tu pedido de ${store_} ya va en camino con ${r.carrier} ♡\nNúmero de guía: ${r.tracking}${link ? '\nPuedes rastrearlo aquí: ' + link : ''}\nCualquier duda, aquí estoy.`;
+}
+$('#shipWa').onclick = () => {
+  const r = { saleNo: $('#shipSale').value, address: $('#shipAddr').value.trim(), phone: $('#shipPhone').value.trim(), carrier: $('#shipCarrier').value, tracking: $('#shipTrack').value.trim(), status: $('#shipStatus').value };
+  if (!r.saleNo) { toast('Elige la venta'); return; }
+  const num_ = waNumber(r.phone); if (num_.length < 11) { toast('Escribe el teléfono de la clienta (10 dígitos)'); return; }
+  window.open('https://wa.me/' + num_ + '?text=' + encodeURIComponent(shipMessage(r)), '_blank');
 };
 $('#shipDel').onclick = async () => { if (!shipEdit || !confirm('¿Eliminar este envío?')) return; try { await store.del('shipments', shipEdit); $('#dShip').close(); } catch { toast('No se pudo eliminar'); } };
 function renderShips() {
