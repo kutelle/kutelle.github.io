@@ -553,7 +553,9 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div><label class="lbl" for="saleDate" style="margin-top:0">Fecha</label><input class="field" type="date" id="saleDate"></div>
       <div><label class="lbl" for="saleNo" style="margin-top:0">N° venta</label><input class="field num" id="saleNo" maxlength="30"></div>
     </div>
-    <label class="lbl" for="saleClient">Cliente</label><input class="field" id="saleClient" maxlength="80" list="clientsDL">
+    <label class="lbl" for="saleClientSel">Clienta</label>
+    <select class="field" id="saleClientSel"></select>
+    <input class="field" id="saleClient" maxlength="80" placeholder="Nombre de la clienta" style="margin-top:8px" hidden>
     <div class="row2">
       <div><label class="lbl" for="saleChannel">Canal</label><select class="field" id="saleChannel"></select></div>
       <div><label class="lbl" for="salePay">Método de pago</label><select class="field" id="salePay"></select></div>
@@ -830,13 +832,14 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   </form>
 </dialog>
 <dialog id="dPrint" aria-labelledby="prTitle2">
-  <div class="dhead"><h2 id="prTitle2">Imprimir</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <div class="dhead"><h2 id="prTitle2">Etiqueta y ticket</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
   <div class="dbody">
-    <label class="lbl" style="margin-top:0">Etiqueta “Para: nombre”</label>
-    <div class="inline"><select class="field" id="prLabelSize"><option value="40x30">Etiqueta 40 × 30 mm</option></select><button type="button" class="btn primary" id="prLabelGo">Imprimir</button></div>
-    <label class="lbl">Ticket para la bolsa</label>
-    <div class="inline"><select class="field" id="prTicketSize"><option value="58">Papel térmico continuo 58 mm</option><option value="80">Papel térmico continuo 80 mm</option></select><button type="button" class="btn primary" id="prTicketGo">Imprimir</button></div>
-    <p class="hint">Elige el tamaño de tu papel. Se abre la ventana de impresión de tu dispositivo. Si sale cortado, prueba con otro tamaño o revisa que la impresión sea al 100%.</p>
+    <label class="lbl" style="margin-top:0">Etiqueta “Para: nombre” (40 × 30 mm)</label>
+    <div class="actions" style="margin-top:6px"><button type="button" class="btn primary" id="prLabelPdf">Guardar PDF</button><button type="button" class="btn" id="prLabelGo">Imprimir</button></div>
+    <label class="lbl">Ticket para la bolsa (papel continuo 57 mm)</label>
+    <div class="actions" style="margin-top:6px"><button type="button" class="btn primary" id="prTicketPdf">Guardar PDF</button><button type="button" class="btn" id="prTicketGo">Imprimir</button></div>
+    <select id="prLabelSize" hidden><option value="40x30">40x30</option></select><select id="prTicketSize" hidden><option value="57">57</option></select>
+    <p class="hint">El PDF queda del tamaño exacto del papel. En el celular se abre el menú para compartirlo directo a tu app de la impresora (Phomemo u otra). En computadora se descarga.</p>
   </div>
 </dialog>
 <dialog id="dPricing" aria-labelledby="prTitle">
@@ -1769,7 +1772,7 @@ function openSale(number, firstSku) {
   $('#saleTitle').textContent = tk ? 'Venta ' + tk.number : 'Nueva venta';
   $('#saleDate').value = tk ? tk.date : today();
   $('#saleNo').value = tk ? tk.number : nextSaleNo();
-  $('#saleClient').value = tk ? (tk.client || '') : '';
+  $('#saleClient').value = tk ? (tk.client || '') : ''; fillClientSel(tk ? (tk.client || '') : null);
   $('#saleChannel').innerHTML = opts(L.channels, tk ? tk.channel : lsGet('lastChannel', L.channels[0]), 'Sin canal');
   $('#salePay').innerHTML = opts(L.payments, tk ? tk.payment : lsGet('lastPay', L.payments[0]), 'Sin método');
   if (tk) t.items = tk.rows.map(r => ({ sku: r.sku, qty: num(r.qty), unitPrice: num(r.unitPrice), discount: num(r.discount) || '' }));
@@ -1802,7 +1805,7 @@ $('#saleForm').onsubmit = async e => {
   for (const sku in need) if (need[sku] > availFor(sku)) { toast(`${sku}: solo hay ${availFor(sku)} disponibles`); return; }
   $('#saleSave').disabled = true;
   try {
-    const header = { date, number, client: $('#saleClient').value.trim(), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0, payState: $('#salePayState').value, dueDate: $('#salePayState').value === 'pending' ? ($('#saleDue').value || addDaysISO(date, 1)) : $('#salePayState').value === 'credit' ? ($('#saleDue').value || '') : '' };
+    const header = { date, number, client: canonClient($('#saleClient').value), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0, payState: $('#salePayState').value, dueDate: $('#salePayState').value === 'pending' ? ($('#saleDue').value || addDaysISO(date, 1)) : $('#salePayState').value === 'credit' ? ($('#saleDue').value || '') : '' };
     lsSet('lastChannel', header.channel); lsSet('lastPay', header.payment);
     if (t.editKey) for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === t.editKey) await store.del('sales', id);
     let k = 0;
@@ -2045,7 +2048,7 @@ $('#saleCashQuick').addEventListener('click', e => { const b = e.target.closest(
 let tkLast = null;
 const PR = {
   label: { '40x30': ['40mm 30mm', '0', 'Etiqueta 40 × 30 mm'] },
-  ticket: { '58': ['58mm auto', '3mm', 'Rollo 58 mm'], '80': ['80mm auto', '4mm', 'Rollo 80 mm'], carta: ['letter', '15mm', 'Hoja carta'] }
+  ticket: { '57': ['57mm auto', '4.5mm', 'Papel continuo 57 mm'] }
 };
 function printHTML(body, size, margin, extraCss, fontHref) {
   const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
@@ -2063,7 +2066,7 @@ function printLabel(tk, sizeKey) {
   printHTML(`<div class="wrap"><div class="frame"><div class="para">Para:</div><div class="nm">${esc(name)}</div><div class="logo"></div></div></div>`, size, margin, css, 'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
 }
 function printBagTicket(tk, sizeKey) {
-  const [size, margin] = PR.ticket[sizeKey]; const narrow = sizeKey === '58';
+  const [size, margin] = PR.ticket['57']; const narrow = true;
   const m = n => { n = Math.round(num(n) * 100) / 100; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
   const L = tk.rows.map(r => { const p = D.bySku[r.sku]; const q = num(r.qty), u = num(r.unitPrice), dsc = num(r.discount); return { name: titleOf(p), sz: sizeText(p), q, u, dsc }; });
   const sub = L.reduce((a, l) => a + l.q * l.u, 0), disc = L.reduce((a, l) => a + l.dsc, 0), fee = tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0, total = sub - disc + fee;
@@ -2072,9 +2075,119 @@ function printBagTicket(tk, sizeKey) {
   const extra = (disc > 0 || fee > 0 || tk.shipMode === 'free') ? `<div class="r"><span>Subtotal</span><span>${m(sub)}</span></div>${disc > 0 ? `<div class="r"><b>Descuento${tk.pct ? ' (' + tk.pct + '%)' : ''}</b><b>−${m(disc)}</b></div>` : ''}${fee > 0 ? `<div class="r"><span>Envío</span><span>${m(fee)}</span></div>` : tk.shipMode === 'free' ? '<div class="r"><span>Envío</span><span>GRATIS</span></div>' : ''}<div class="d"></div>` : '';
   printHTML(`<div class="t"><div class="logo"></div><div class="c">${fmtDate(tk.date)}${tk.number ? ' · #' + esc(tk.number) : ''}</div><div class="d"></div>${items}<div class="d"></div>${extra}<div class="r tot"><span>TOTAL</span><span>${m(total)}</span></div>${disc > 0 ? `<div class="c" style="margin-top:1.5mm"><b>¡Ahorraste ${m(disc)}!</b></div>` : ''}<div class="d"></div><div class="c big">¡Gracias por tu compra!</div><div class="c" style="margin-top:1mm">@kutelle</div></div>`, size, margin, css);
 }
-$('#tkPrint').onclick = () => { if (!tkLast) return; $('#prLabelSize').value = '40x30'; $('#prTicketSize').value = lsGet('prTicket', '80') === '58' ? '58' : '80'; $('#dPrint').showModal(); };
-$('#prLabelGo').onclick = () => { lsSet('prLabel', $('#prLabelSize').value); printLabel(tkLast, $('#prLabelSize').value); };
-$('#prTicketGo').onclick = () => { lsSet('prTicket', $('#prTicketSize').value); printBagTicket(tkLast, $('#prTicketSize').value); };
+$('#tkPrint').onclick = () => { if (!tkLast) return; $('#dPrint').showModal(); };
+$('#prLabelGo').onclick = () => printLabel(tkLast, '40x30');
+$('#prTicketGo').onclick = () => printBagTicket(tkLast, '57');
+
+/* ===== Lista de clientas (se arma sola con tus ventas) ===== */
+const normName = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+function clientList() { const m = new Map(); D.tickets.forEach(t => { const n = String(t.client || '').trim().replace(/\s+/g, ' '); if (!n) return; const k = normName(n); if (!m.has(k)) m.set(k, n); }); return [...m.values()].sort((a, b) => a.localeCompare(b, 'es')); }
+function canonClient(v) { const n = String(v || '').trim().replace(/\s+/g, ' '); if (!n) return ''; const k = normName(n); return clientList().find(c => normName(c) === k) || n; }
+function fillClientSel(current) {
+  const L = clientList(), sel = $('#saleClientSel'); const cur = current == null ? null : canonClient(current);
+  sel.innerHTML = `<option value="">Elige una clienta…</option>` + L.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('') + '<option value="__new">+ Nueva clienta</option><option value="__none">Sin nombre</option>';
+  if (cur === null) { sel.value = L.length ? '' : '__new'; } else if (cur === '') sel.value = '__none'; else sel.value = L.includes(cur) ? cur : '__new';
+  $('#saleClient').hidden = sel.value !== '__new';
+}
+function clientShipDefaults(name) {
+  const nums = D.tickets.filter(t => normName(t.client) === normName(name)).map(t => t.number);
+  const sh = Object.values(S.shipments).filter(x => nums.includes(String(x.saleNo))).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+  return sh || null;
+}
+$('#saleClientSel').onchange = () => {
+  const v = $('#saleClientSel').value, inp = $('#saleClient');
+  if (v === '__new') { inp.hidden = false; inp.value = ''; inp.focus(); return; }
+  inp.hidden = true; inp.value = (v === '__none' || v === '') ? '' : v;
+  if (v && v !== '__none') { const sh = clientShipDefaults(v); if (sh) { if (!$('#saleAddr').value) $('#saleAddr').value = sh.address || ''; if (!$('#salePhone').value) $('#salePhone').value = sh.phone || ''; if (!$('#saleCity').value || $('#saleCity').value === 'León') $('#saleCity').value = sh.city || $('#saleCity').value; } }
+};
+$('#saleClient').addEventListener('blur', () => { const c = canonClient($('#saleClient').value); if (c && c !== $('#saleClient').value.trim()) { $('#saleClient').value = c; const L = clientList(); if (L.includes(c)) { $('#saleClientSel').value = c; $('#saleClient').hidden = true; toast('Ya existía “' + c + '”: se usó ese nombre'); } } });
+
+/* ===== PDF de etiqueta (40×30 mm) y ticket (papel continuo 57 mm) ===== */
+const PXMM = 12; // 12 px por mm ≈ 300 dpi
+let fontLinkAdded = false;
+async function ensureScriptFont() {
+  if (!fontLinkAdded) { fontLinkAdded = true; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap'; document.head.appendChild(l); }
+  try { await Promise.race([document.fonts.load('700 40px "Dancing Script"'), new Promise(r => setTimeout(r, 2500))]); } catch {}
+}
+const SCRIPT_FONT = "'Dancing Script','Segoe Script','Brush Script MT','Apple Chancery','Lucida Handwriting',cursive";
+const monoLogo = async (w) => { const logo = await tkLoadLogo(); if (!logo) return null; const h = Math.round(w * logo.naturalHeight / logo.naturalWidth); const o = document.createElement('canvas'); o.width = w; o.height = h; const c = o.getContext('2d'); c.drawImage(logo, 0, 0, w, h); c.globalCompositeOperation = 'source-in'; c.fillStyle = '#000'; c.fillRect(0, 0, w, h); return o; };
+async function labelCanvas(tk) {
+  await ensureScriptFont();
+  const W = 40 * PXMM, H = 30 * PXMM; const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, W, H); c.strokeStyle = '#000'; c.fillStyle = '#000';
+  const rr = (x, y, w, h, r, lw) => { c.lineWidth = lw; c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); c.stroke(); };
+  rr(1 * PXMM, 1 * PXMM, W - 2 * PXMM, H - 2 * PXMM, 2.2 * PXMM, 0.45 * PXMM); rr(1.9 * PXMM, 1.9 * PXMM, W - 3.8 * PXMM, H - 3.8 * PXMM, 1.5 * PXMM, 0.22 * PXMM);
+  c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+  c.font = `500 ${2.2 * PXMM}px Jost, Arial, sans-serif`; try { c.letterSpacing = (0.5 * PXMM) + 'px'; } catch {} c.fillText('PARA:', W / 2 + 0.25 * PXMM, 6.6 * PXMM); try { c.letterSpacing = '0px'; } catch {}
+  const name = (tk.client || '').trim() || 'Clienta'; const maxW = W - 7 * PXMM;
+  let fs = (name.length > 26 ? 4.4 : 6.4) * PXMM, lines;
+  const wrap = f => { c.font = `italic 700 ${f}px ${SCRIPT_FONT}`; const out = []; let cur = ''; for (const w of name.split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } out.push(cur); return out; };
+  lines = wrap(fs); while ((lines.length > 2 || lines.some(l => c.measureText(l).width > maxW)) && fs > 2.6 * PXMM) { fs -= 0.2 * PXMM; lines = wrap(fs); }
+  const lh = fs * 1.05; const blockH = lines.length * lh; const top = 7.2 * PXMM + (14 * PXMM - blockH) / 2 * 0 ;
+  const baseY = 7.4 * PXMM + fs * 0.85 + ((lines.length === 1) ? 1.2 * PXMM : 0);
+  lines.forEach((l, i) => c.fillText(l, W / 2, baseY + i * lh));
+  const lg = await monoLogo(Math.round(11 * PXMM)); if (lg) c.drawImage(lg, (W - lg.width) / 2, H - 2.4 * PXMM - lg.height - 0.2 * PXMM);
+  return cv;
+}
+async function ticketCanvas(tk) {
+  const W = 57 * PXMM, M = 4.5 * PXMM, CW = W - 2 * M; const big = document.createElement('canvas'); big.width = W; big.height = 12000; const c = big.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, W, big.height); c.fillStyle = '#000'; c.strokeStyle = '#000';
+  const F = 'Jost, Arial, sans-serif', fs = 2.9 * PXMM, lh = fs * 1.35;
+  const m = n => { n = Math.round(num(n) * 100) / 100; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+  const L = tk.rows.map(r => { const p = D.bySku[r.sku]; return { name: titleOf(p) + (sizeText(p) ? ' · ' + sizeText(p) : ''), q: num(r.qty), u: num(r.unitPrice), d: num(r.discount) }; });
+  const sub = L.reduce((a, l) => a + l.q * l.u, 0), disc = L.reduce((a, l) => a + l.d, 0), fee = tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0, total = sub - disc + fee;
+  let y = 3 * PXMM;
+  const wrapTxt = (txt, font, maxW) => { c.font = font; const out = []; let cur = ''; for (const w of String(txt).split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out; };
+  const dash = () => { y += 2 * PXMM; c.save(); c.lineWidth = 2; c.setLineDash([8, 7]); c.beginPath(); c.moveTo(M, y); c.lineTo(W - M, y); c.stroke(); c.restore(); y += 1.6 * PXMM; };
+  const row = (l, r, font, gap) => { c.font = font; c.textAlign = 'left'; const rw = c.measureText(r).width; const ls = wrapTxt(l, font, CW - rw - 14); ls.forEach((t, i) => { y += lh; c.textAlign = 'left'; c.fillText(t, M, y); if (i === 0) { c.textAlign = 'right'; c.fillText(r, W - M, y); } }); if (gap) y += gap; };
+  const lg = await monoLogo(Math.round(32 * PXMM)); if (lg) { c.drawImage(lg, (W - lg.width) / 2, y); y += lg.height + 1.5 * PXMM; }
+  c.textAlign = 'center'; c.font = `500 ${fs}px ${F}`; y += lh; c.fillText(fmtDate(tk.date) + (tk.number ? ' · #' + tk.number : ''), W / 2, y);
+  dash();
+  for (const l of L) { row(l.name, m(l.q * l.u), `500 ${fs}px ${F}`, 0); const sm = `400 ${fs * .85}px ${F}`; c.font = sm; c.textAlign = 'left'; if (l.q > 1) { y += lh * .9; c.fillText(`${l.q} × ${m(l.u)}`, M, y); } if (l.d > 0) { y += lh * .9; c.fillText('Descuento', M, y); c.textAlign = 'right'; c.fillText('−' + m(l.d), W - M, y); } y += 0.9 * PXMM; }
+  dash();
+  if (disc > 0 || fee > 0 || tk.shipMode === 'free') {
+    row('Subtotal', m(sub), `400 ${fs}px ${F}`, 0);
+    if (disc > 0) row('Descuento' + (tk.pct ? ' (' + tk.pct + '%)' : ''), '−' + m(disc), `700 ${fs}px ${F}`, 0);
+    if (fee > 0) row('Envío', m(fee), `400 ${fs}px ${F}`, 0); else if (tk.shipMode === 'free') row('Envío', 'GRATIS', `400 ${fs}px ${F}`, 0);
+    dash();
+  }
+  y += 0.3 * PXMM; row('TOTAL', m(total), `700 ${fs * 1.35}px ${F}`, 0.4 * PXMM);
+  if (disc > 0) { c.font = `600 ${fs}px ${F}`; c.textAlign = 'center'; y += lh * 1.1; c.fillText('¡Ahorraste ' + m(disc) + '!', W / 2, y); }
+  dash();
+  c.textAlign = 'center'; c.font = `600 ${fs * 1.1}px ${F}`; y += lh * 1.1; c.fillText('¡Gracias por tu compra!', W / 2, y);
+  c.font = `500 ${fs}px ${F}`; y += lh; c.fillText('@kutelle', W / 2, y);
+  y += 5 * PXMM;
+  const out = document.createElement('canvas'); out.width = W; out.height = Math.ceil(y); out.getContext('2d').drawImage(big, 0, 0, W, out.height, 0, 0, W, out.height);
+  return out;
+}
+async function makePdf(cv, wmm, hmm) {
+  const W = cv.width, H = cv.height, pw = (wmm * 72 / 25.4).toFixed(2), ph = (hmm * 72 / 25.4).toFixed(2);
+  const px = cv.getContext('2d').getImageData(0, 0, W, H).data; const gray = new Uint8Array(W * H); for (let i = 0, j = 0; i < px.length; i += 4, j++) gray[j] = px[i];
+  let data = gray, filter = '/FlateDecode';
+  try { const cs = new Blob([gray]).stream().pipeThrough(new CompressionStream('deflate')); data = new Uint8Array(await new Response(cs).arrayBuffer()); }
+  catch { data = null; }
+  let cs_ = '/DeviceGray', bpc = 8;
+  if (!data) { const jpg = cv.toDataURL('image/jpeg', 0.95).split(',')[1]; const bin = atob(jpg); data = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i); filter = '/DCTDecode'; cs_ = '/DeviceRGB'; }
+  const enc = new TextEncoder(); const parts = []; const offs = []; let len = 0;
+  const push = u => { parts.push(u); len += u.length; }; const str = t => push(enc.encode(t));
+  str('%PDF-1.4\n'); 
+  const obj = (n, body) => { offs[n] = len; str(`${n} 0 obj\n${body}\nendobj\n`); };
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>'); obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+  offs[4] = len; str(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace ${cs_} /BitsPerComponent ${bpc} /Filter ${filter} /Length ${data.length} >>\nstream\n`); push(data); str('\nendstream\nendobj\n');
+  const content = `q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`; obj(5, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  const xr = len; let x = 'xref\n0 6\n0000000000 65535 f \n'; for (let n = 1; n <= 5; n++) x += String(offs[n]).padStart(10, '0') + ' 00000 n \n';
+  str(x + `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`);
+  return new Blob(parts, { type: 'application/pdf' });
+}
+async function savePdfFrom(cv, wmm, hmm, name) { deliverFile(new File([await makePdf(cv, wmm, hmm)], name, { type: 'application/pdf' })); }
+async function deliverFile(f) {
+  try { if (navigator.canShare && navigator.canShare({ files: [f] }) && /android|iphone|ipad/i.test(navigator.userAgent)) { await navigator.share({ files: [f], title: f.name }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  const u = URL.createObjectURL(f); const a = document.createElement('a'); a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); toast('PDF guardado: ábrelo desde tu app de impresión');
+}
+const fileSafe = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').slice(0, 30) || 'clienta';
+$('#prLabelPdf').onclick = async () => { if (!tkLast) return; const b = $('#prLabelPdf'); b.disabled = true; try { const cv = await labelCanvas(tkLast); await savePdfFrom(cv, 40, 30, `etiqueta_${fileSafe(tkLast.client)}.pdf`); } finally { b.disabled = false; } };
+$('#prTicketPdf').onclick = async () => { if (!tkLast) return; const b = $('#prTicketPdf'); b.disabled = true; try { const cv = await ticketCanvas(tkLast); await savePdfFrom(cv, 57, cv.height / PXMM, `ticket_${fileSafe(tkLast.number)}.pdf`); } finally { b.disabled = false; } };
 $('#saleDel').onclick = async () => {
   const k = T.sale.editKey; if (!k || !confirm('¿Eliminar esta venta? Las piezas regresan al inventario.')) return;
   try { for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === k) await store.del('sales', id); $('#dSale').close(); toast('Venta eliminada'); } catch { toast('No se pudo eliminar'); }
