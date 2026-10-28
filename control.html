@@ -118,6 +118,7 @@ dialog{border:0;padding:0;background:var(--surface);color:var(--ink);width:min(5
 dialog::backdrop{background:rgba(10,14,12,.55)}
 @media (max-width:600px){dialog{margin:auto 0 0;width:100%;max-width:100%;border-radius:18px 18px 0 0;max-height:calc(100% - env(safe-area-inset-top,0px) - 12px);padding-bottom:env(safe-area-inset-bottom,0px)}}
 .dhead{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:var(--surface);border-bottom:1.5px solid var(--line)}
+.cashres{font-weight:600}.cashres b{font-size:1.5rem;margin-left:6px}.cashres.ok{color:var(--ok)}.cashres.zero{color:var(--out)}
 .dhead h2{font-size:1.05rem;margin:0;font-weight:700}
 .dbody{padding:16px}
 .close{border:0;background:transparent;font-size:1.6rem;line-height:1;width:40px;height:40px;cursor:pointer;border-radius:10px}
@@ -325,6 +326,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   <!-- CUENTAS -->
   <section id="s-cue" hidden>
     <div class="seg" id="cueTabs"><button data-t="ar" aria-pressed="true">Por cobrar</button><button data-t="ap" aria-pressed="false">Por pagar</button></div>
+    <div class="chips" id="cueView" style="margin-bottom:10px"><button class="chip" data-v="sale" aria-pressed="true">Por venta</button><button class="chip" data-v="client" aria-pressed="false">Por clienta</button></div>
     <p class="stats num" id="cueStats"></p>
     <div class="rows" id="cueList"></div>
   </section>
@@ -567,9 +569,15 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div style="display:flex;align-items:center;gap:6px"><input class="field num" id="salePct" type="number" min="0" max="100" step="0.5" inputmode="decimal" placeholder="Otro" style="width:90px;text-align:right" aria-label="Porcentaje de descuento"><b>%</b></div>
     </div>
     <p class="hint">Se aplica a todas las piezas. Si quieres, ajusta el descuento en pesos de una pieza en particular.</p>
+    <div id="saleCash" hidden style="margin-top:10px;padding:12px;border:1.5px solid var(--line);border-radius:12px">
+      <label class="lbl" for="saleCashIn" style="margin-top:0">Efectivo recibido</label>
+      <input class="field num" id="saleCashIn" type="number" min="0" step="0.01" inputmode="decimal" placeholder="¿Cuánto te dan?">
+      <div class="chips" id="saleCashQuick" style="margin-top:8px"><button type="button" class="chip" data-v="x">Exacto</button><button type="button" class="chip" data-v="50">$50</button><button type="button" class="chip" data-v="100">$100</button><button type="button" class="chip" data-v="200">$200</button><button type="button" class="chip" data-v="500">$500</button><button type="button" class="chip" data-v="1000">$1,000</button></div>
+      <div id="saleChange" class="cashres" style="margin-top:10px;font-size:1.05rem"></div>
+    </div>
     <label class="lbl" for="salePayState">Estado del pago</label>
-    <select class="field" id="salePayState"><option value="paid">Pagada</option><option value="pending">Pendiente de pago (por cobrar)</option></select>
-    <div id="saleDueWrap" hidden><label class="lbl" for="saleDue">Fecha límite de pago</label><input class="field" type="date" id="saleDue"></div>
+    <select class="field" id="salePayState"><option value="paid">Pagada</option><option value="pending">Pendiente de pago (por cobrar)</option><option value="credit">A crédito (paga con abonos)</option></select>
+    <div id="saleDueWrap" hidden><label class="lbl" for="saleDue" id="saleDueLbl">Fecha límite de pago</label><input class="field" type="date" id="saleDue"></div>
     <label class="lbl" for="saleShipMode">Envío</label>
     <select class="field" id="saleShipMode"><option value="none">Sin costo de envío (punto medio)</option><option value="free">Envío gratis (llegó a $999)</option><option value="paid">Envío a domicilio: $40</option></select>
     <p class="hint" id="saleShipHint"></p>
@@ -581,6 +589,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       </div>
       <p class="hint">Al guardar, se crea solo el registro del envío en Ventas → Envíos.</p>
     </div>
+    <div id="saleAbonoBox" hidden class="kv num" style="margin-bottom:10px"><div><span id="saleAbonoTxt"></span><button type="button" class="btn" id="saleAbonoBtn" style="padding:6px 12px">Registrar abono</button></div></div>
     <div class="total"><span id="saleSub"></span><b class="num" id="saleTotal"></b></div>
     <div class="kv num" id="saleCalc" style="margin-top:10px"></div>
     <p class="hint" id="saleWarn" style="font-weight:600"></p>
@@ -753,7 +762,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   <div class="dbody">
     <p class="hint" style="margin-top:0">Listo para mandarlo a tu clienta. En el celular también puedes mantener presionada la imagen para guardarla.</p>
     <img id="tkImg" alt="Ticket de venta" style="width:100%;max-width:420px;display:block;margin:0 auto;border-radius:8px">
-    <div class="actions"><button type="button" class="btn" id="tkSave">Guardar imagen</button><button type="button" class="btn primary" id="tkShare">Compartir</button></div>
+    <div class="actions"><button type="button" class="btn" id="tkPrint">Imprimir etiqueta y ticket</button><button type="button" class="btn" id="tkSave">Guardar imagen</button><button type="button" class="btn primary" id="tkShare">Compartir</button></div>
   </div>
 </dialog>
 <dialog id="dPay" aria-labelledby="payTitle">
@@ -806,6 +815,29 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <label class="lbl" for="pcPrice">Precio de venta</label><input class="field num" id="pcPrice" type="number" step="0.01" min="0" inputmode="decimal">
     <div class="actions"><button class="btn primary" type="submit">Agregar a la compra</button></div>
   </form>
+</dialog>
+<dialog id="dCli" aria-labelledby="cliTitle">
+  <div class="dhead"><h2 id="cliTitle">Abono</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <form class="dbody" id="cliForm" autocomplete="off" novalidate>
+    <div class="kv num" id="cliInfo"></div>
+    <div class="row2">
+      <div><label class="lbl" for="cliAmt">Monto del abono</label><input class="field num" id="cliAmt" type="number" min="0" step="0.01" inputmode="decimal"></div>
+      <div><label class="lbl" for="cliDate">Fecha</label><input class="field" type="date" id="cliDate"></div>
+    </div>
+    <label class="lbl" for="cliNote">Nota (opcional)</label><input class="field" id="cliNote" maxlength="80" placeholder="Ej. transferencia, efectivo">
+    <p class="hint" id="cliHint"></p>
+    <div class="actions"><button class="btn primary" type="submit" id="cliSave">Registrar abono</button></div>
+  </form>
+</dialog>
+<dialog id="dPrint" aria-labelledby="prTitle2">
+  <div class="dhead"><h2 id="prTitle2">Imprimir</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <div class="dbody">
+    <label class="lbl" style="margin-top:0">Etiqueta “Para: nombre”</label>
+    <div class="inline"><select class="field" id="prLabelSize"><option value="40x30">Etiqueta 40 × 30 mm</option></select><button type="button" class="btn primary" id="prLabelGo">Imprimir</button></div>
+    <label class="lbl">Ticket para la bolsa</label>
+    <div class="inline"><select class="field" id="prTicketSize"><option value="58">Papel térmico continuo 58 mm</option><option value="80">Papel térmico continuo 80 mm</option></select><button type="button" class="btn primary" id="prTicketGo">Imprimir</button></div>
+    <p class="hint">Elige el tamaño de tu papel. Se abre la ventana de impresión de tu dispositivo. Si sale cortado, prueba con otro tamaño o revisa que la impresión sea al 100%.</p>
+  </div>
 </dialog>
 <dialog id="dPricing" aria-labelledby="prTitle">
   <div class="dhead"><h2 id="prTitle">Ajustes del precio sugerido</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
@@ -1656,7 +1688,7 @@ function updateTotal(kind) {
     const sh = $('#saleShipHint'); sh.className = 'hint';
     sh.textContent = !t.items.length ? '' : mode === 'free' && goods < SHIP_FREE ? `Ojo: la compra es de ${money(goods)} y aún no llega a $${SHIP_FREE} para envío gratis.` : mode !== 'free' && goods >= SHIP_FREE ? `La compra llega a $${SHIP_FREE}: le corresponde envío gratis a domicilio.` : '';
     const u = t.items.reduce((s, it) => s + num(it.qty), 0);
-    $('#saleSub').textContent = u ? `Total a cobrar, ${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#saleTotal').textContent = money(tot);
+    $('#saleSub').textContent = u ? `Total a cobrar, ${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#saleTotal').textContent = money(tot); saleTotNow = tot; if (typeof updateCash === 'function') updateCash();
     const pctTxt = sub > 0 && disc > 0 ? ` (${Math.round(disc / sub * 1000) / 10}%)` : '';
     $('#saleCalc').innerHTML = u ? [
       ['Precio normal', money(sub)],
@@ -1745,10 +1777,12 @@ function openSale(number, firstSku) {
   $('#salePct').value = pcts.length === 1 && pcts[0] ? pcts[0] : ''; syncPctChips();
   $('#saleShipMode').value = tk && tk.rows[0] && tk.rows[0].shipMode ? tk.rows[0].shipMode : 'none';
   { const sh = tk ? Object.values(S.shipments).find(x => String(x.saleNo) === tk.number) : null; $('#saleAddr').value = sh ? (sh.address || '') : ''; $('#saleCity').value = sh ? (sh.city || '') : 'León'; $('#salePhone').value = sh ? (sh.phone || '') : ''; }
-  $('#salePayState').value = tk && tk.rows[0] && tk.rows[0].payState === 'pending' ? 'pending' : 'paid'; $('#saleDue').value = tk && tk.rows[0] && tk.rows[0].dueDate || ''; syncSaleDue();
+  $('#salePayState').value = tk && tk.rows[0] && ['pending', 'credit'].includes(tk.rows[0].payState) ? tk.rows[0].payState : 'paid'; $('#saleDue').value = tk && tk.rows[0] && tk.rows[0].dueDate || ''; syncSaleDue();
   $('#saleAdd').innerHTML = skuOptions();
   $('#saleExtra').hidden = !tk || !canWrite; $('#saleDel').hidden = !tk; $('#saleTicket').hidden = !tk;
+  $('#saleCashIn').value = '';
   $('#saleShipBox').hidden = $('#saleShipMode').value === 'none';
+  { const x = tk ? cuentas().all.ar.find(a => a.ref === tk.number) : null; $('#saleAbonoBox').hidden = !x; if (x) $('#saleAbonoTxt').textContent = `Abonado ${money(x.paid)} · Falta ${money(Math.max(0, x.bal))}`; }
   renderItems('sale');
   if (firstSku) addItem('sale', firstSku);
   if (!$('#dSale').open) $('#dSale').showModal();
@@ -1768,7 +1802,7 @@ $('#saleForm').onsubmit = async e => {
   for (const sku in need) if (need[sku] > availFor(sku)) { toast(`${sku}: solo hay ${availFor(sku)} disponibles`); return; }
   $('#saleSave').disabled = true;
   try {
-    const header = { date, number, client: $('#saleClient').value.trim(), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0, payState: $('#salePayState').value, dueDate: $('#salePayState').value === 'pending' ? ($('#saleDue').value || addDaysISO(date, 1)) : '' };
+    const header = { date, number, client: $('#saleClient').value.trim(), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0, payState: $('#salePayState').value, dueDate: $('#salePayState').value === 'pending' ? ($('#saleDue').value || addDaysISO(date, 1)) : $('#salePayState').value === 'credit' ? ($('#saleDue').value || '') : '' };
     lsSet('lastChannel', header.channel); lsSet('lastPay', header.payment);
     if (t.editKey) for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === t.editKey) await store.del('sales', id);
     let k = 0;
@@ -1855,7 +1889,7 @@ async function showTicket(tk) {
   const cv = await drawTicket(tk);
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
   if (!blob) { toast('No se pudo crear el ticket'); return; }
-  tkBlob = blob; tkName = 'ticket-kutelle-' + String(tk.number).replace(/[^\w-]+/g, '') + '.png';
+  tkLast = tk; tkBlob = blob; tkName = 'ticket-kutelle-' + String(tk.number).replace(/[^\w-]+/g, '') + '.png';
   if (tkUrl) URL.revokeObjectURL(tkUrl); tkUrl = URL.createObjectURL(blob);
   $('#tkImg').src = tkUrl; $('#tkTitle').textContent = 'Ticket ' + tk.number;
   if (!$('#dTicket').open) $('#dTicket').showModal();
@@ -1876,12 +1910,12 @@ $('#tkShare').onclick = async () => {
 };
 
 /* ===== Cuentas por cobrar y por pagar ===== */
-let cueTab = 'ar', payCtx = null;
+let cueTab = 'ar', payCtx = null, cueView = 'sale', cueClient = null;
 const addDaysISO = (iso, n) => { const [y, m, d] = String(iso).split('-').map(Number); const t = new Date(y, m - 1, d + n); return t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate()); };
 const payDocs = () => Object.entries(S.config).filter(([k, v]) => k.startsWith('pay_') && v && v.ref != null).map(([id, v]) => ({ id, ...v }));
 function cuentas() {
   const pays = payDocs(); const paidOf = (kind, ref) => pays.filter(p => p.kind === kind && String(p.ref) === String(ref)).reduce((s, p) => s + num(p.amount), 0);
-  const ar = D.tickets.filter(t => t.rows[0] && t.rows[0].payState === 'pending').map(t => { const total = t.total + num(t.rows[0].shipFee); const paid = paidOf('ar', t.number); return { kind: 'ar', ref: t.number, who: t.client || 'Venta ' + t.number, label: 'N° ' + t.number, date: t.date, due: t.rows[0].dueDate || '', total, paid, bal: total - paid }; });
+  const ar = D.tickets.filter(t => t.rows[0] && ['pending', 'credit'].includes(t.rows[0].payState)).map(t => { const total = t.total + num(t.rows[0].shipFee); const paid = paidOf('ar', t.number); return { kind: 'ar', ref: t.number, client: (t.client || '').trim(), who: t.client || 'Venta ' + t.number, label: 'N° ' + t.number, date: t.date, due: t.rows[0].dueDate || '', total, paid, bal: total - paid }; });
   const ap = D.ptickets.filter(t => t.rows[0] && t.rows[0].payState === 'credit').map(t => { const paid = paidOf('ap', t.group); return { kind: 'ap', ref: t.group, who: t.supplier || 'Proveedor', label: t.number ? 'Nota ' + t.number : 'Compra', date: t.date, due: t.rows[0].dueDate || '', total: t.total, paid, bal: t.total - paid }; });
   const open = a => a.filter(x => x.bal > 0.005).sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999')));
   return { ar: open(ar), ap: open(ap), all: { ar, ap }, pays };
@@ -1895,17 +1929,56 @@ function dueInfo(due) {
   return { txt: 'Vence ' + fmtDate(due), cls: '' };
 }
 function renderCuentas() {
-  const C = cuentas(); const list = C[cueTab];
+  const C = cuentas(); let list = C[cueTab];
+  $('#cueView').hidden = cueTab !== 'ar';
+  $$('#cueView .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.v === cueView)));
+  const byClient = cueTab === 'ar' && cueView === 'client' && !cueClient;
+  if (cueTab === 'ar' && cueView === 'client' && cueClient != null) list = list.filter(x => x.client === cueClient);
   const tot = list.reduce((s, x) => s + x.bal, 0), vencidas = list.filter(x => x.due && x.due < today());
   const other = C[cueTab === 'ar' ? 'ap' : 'ar'].reduce((s, x) => s + x.bal, 0);
-  $('#cueStats').innerHTML = `<b>${cueTab === 'ar' ? 'Te deben' : 'Debes'} ${money(tot)}</b>${vencidas.length ? ` · <span class="zero">${vencidas.length} vencida${vencidas.length === 1 ? '' : 's'}</span>` : ''}<br><small>${cueTab === 'ar' ? 'Por pagar a proveedores' : 'Por cobrar a clientas'}: ${money(other)}</small>`;
-  $('#cueList').innerHTML = list.length ? list.map(x => { const di = dueInfo(x.due); return `<button class="row" type="button" data-k="${x.kind}" data-r="${esc(x.ref)}">
+  $('#cueStats').innerHTML = `<b>${cueTab === 'ar' ? (cueClient != null && cueView === 'client' ? (cueClient || 'Sin nombre') + ' te debe' : 'Te deben') : 'Debes'} ${money(tot)}</b>${vencidas.length ? ` · <span class="zero">${vencidas.length} vencida${vencidas.length === 1 ? '' : 's'}</span>` : ''}<br><small>${cueTab === 'ar' ? 'Por pagar a proveedores' : 'Por cobrar a clientas'}: ${money(other)}</small>`;
+  if (byClient) {
+    const g = {}; list.forEach(x => { (g[x.client] = g[x.client] || { name: x.client, bal: 0, n: 0, paid: 0, total: 0 }); g[x.client].bal += x.bal; g[x.client].n++; g[x.client].paid += x.paid; g[x.client].total += x.total; });
+    const arr = Object.values(g).sort((a, b) => b.bal - a.bal);
+    $('#cueList').innerHTML = arr.length ? arr.map(c => `<button class="row" type="button" data-c="${esc(c.name)}"><div class="l"><b>${esc(c.name || 'Sin nombre')}</b><small>${c.n} ${c.n === 1 ? 'venta' : 'ventas'} con saldo${c.paid > 0 ? ', ha abonado ' + money(c.paid) : ''}</small></div><div class="r"><b class="num">${money(c.bal)}</b><small>debe</small></div></button>`).join('') : `<div class="empty"><b>Nadie te debe nada</b>Cuando registres una venta “A crédito” o “Pendiente de pago”, aparece aquí.</div>`;
+    return;
+  }
+  const head = cueTab === 'ar' && cueView === 'client' && cueClient != null ? `<div class="bar w" style="margin-bottom:8px"><button class="btn" id="cueBack" type="button">‹ Todas</button><button class="btn primary" id="cueAbono" type="button">Registrar abono de ${esc(cueClient || 'la clienta')}</button></div>` : '';
+  $('#cueList').innerHTML = head + (list.length ? list.map(x => { const di = dueInfo(x.due); return `<button class="row" type="button" data-k="${x.kind}" data-r="${esc(x.ref)}">
     <div class="l"><b>${esc(x.who)}</b><small>${esc(x.label)}, ${fmtDate(x.date)}</small><small class="${di.cls}">${di.txt}</small></div>
     <div class="r"><b class="num">${money(x.bal)}</b><small>${x.paid > 0 ? 'de ' + money(x.total) : 'pendiente'}</small></div></button>`; }).join('')
-    : `<div class="empty"><b>${cueTab === 'ar' ? 'Nadie te debe nada' : 'No debes nada a proveedores'}</b>${cueTab === 'ar' ? 'Cuando registres una venta como “Pendiente de pago”, aparece aquí.' : 'Cuando registres una compra “A crédito”, aparece aquí.'}</div>`;
+    : `<div class="empty"><b>${cueTab === 'ar' ? 'Nadie te debe nada' : 'No debes nada a proveedores'}</b>${cueTab === 'ar' ? 'Cuando registres una venta “A crédito” o “Pendiente de pago”, aparece aquí.' : 'Cuando registres una compra “A crédito”, aparece aquí.'}</div>`);
 }
+$$('#cueView .chip').forEach(b => b.addEventListener('click', () => { cueView = b.dataset.v; cueClient = null; renderCuentas(); }));
 $$('#cueTabs button').forEach(b => b.addEventListener('click', () => { cueTab = b.dataset.t; $$('#cueTabs button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderCuentas(); }));
-$('#cueList').addEventListener('click', e => { const b = e.target.closest('.row'); if (b) openPay(b.dataset.k, b.dataset.r); });
+$('#cueList').addEventListener('click', e => {
+  if (e.target.closest('#cueBack')) { cueClient = null; renderCuentas(); return; }
+  if (e.target.closest('#cueAbono')) { openCli(cueClient); return; }
+  const b = e.target.closest('.row'); if (!b) return;
+  if (b.dataset.c != null) { cueClient = b.dataset.c; renderCuentas(); return; }
+  openPay(b.dataset.k, b.dataset.r);
+});
+function cliOpen(name) { return cuentas().ar.filter(x => x.client === (name || '')).sort((a, b) => String(a.date).localeCompare(String(b.date))); }
+let cliName = null;
+function openCli(name) {
+  cliName = name || ''; const L = cliOpen(cliName); const tot = L.reduce((s, x) => s + x.bal, 0);
+  $('#cliTitle').textContent = 'Abono de ' + (cliName || 'la clienta');
+  $('#cliInfo').innerHTML = `<div class="strong"><span>Debe en total</span><span>${money(tot)}</span></div>` + L.map(x => `<div><span>N° ${esc(x.ref)}, ${fmtDate(x.date)}</span><span>${money(x.bal)}</span></div>`).join('');
+  $('#cliAmt').value = ''; $('#cliDate').value = today(); $('#cliNote').value = ''; $('#cliHint').textContent = 'El abono se aplica primero a la venta más antigua.';
+  if (!$('#dCli').open) $('#dCli').showModal();
+}
+$('#cliForm').onsubmit = async e => {
+  e.preventDefault(); let amt = num($('#cliAmt').value), date = $('#cliDate').value;
+  if (!(amt > 0)) { toast('Escribe cuánto abonó'); return; } if (!date) { toast('Elige la fecha'); return; }
+  const L = cliOpen(cliName); const tot = L.reduce((s, x) => s + x.bal, 0);
+  if (amt > tot + 0.005) { toast(`Solo debe ${money(tot)}. Escribe un monto menor o igual`); return; }
+  $('#cliSave').disabled = true;
+  try {
+    const parts = [];
+    for (const x of L) { if (amt <= 0.005) break; const a = Math.min(amt, x.bal); const id = 'pay_' + store.newId(); const data = { kind: 'ar', ref: String(x.ref), amount: Math.round(a * 100) / 100, date, note: $('#cliNote').value.trim() || 'abono general', createdAt: Date.now() }; await store.set('config', id, data); S.config[id] = data; parts.push(`N° ${x.ref}: ${money(a)}`); amt -= a; }
+    toast('Abono registrado (' + parts.join(', ') + ')'); $('#dCli').close(); renderAll();
+  } catch { toast('No se pudo guardar el abono'); } finally { $('#cliSave').disabled = false; }
+};
 function openPay(kind, ref) {
   const C = cuentas(); const x = C.all[kind].find(a => String(a.ref) === String(ref)); if (!x) return;
   payCtx = { kind, ref };
@@ -1943,11 +2016,65 @@ $('#payDueSave').onclick = async () => {
   try { for (const r of rows || []) await store.set(payCtx.kind === 'ar' ? 'sales' : 'purchases', r.id, (({ id, ...rest }) => ({ ...rest, dueDate: due }))(r)); toast('Fecha límite actualizada'); openPay(payCtx.kind, payCtx.ref); } catch { toast('No se pudo guardar'); }
 };
 $('#payOpen').onclick = () => { if (!payCtx) return; const { kind, ref } = payCtx; $('#dPay').close(); if (kind === 'ar') openSale(ref); else openPurchase(ref); };
+$('#saleAbonoBtn').onclick = () => { const n = T.sale.editKey; if (!n) return; $('#dSale').close(); go('cue'); cueTab = 'ar'; cueView = 'sale'; cueClient = null; $$('#cueTabs button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.t === 'ar'))); renderCuentas(); openPay('ar', n); };
 $('#payTicket').onclick = () => { const t = saleToTicket(payCtx.ref); if (t) showTicket(t); };
 // estado de pago en formularios
-function syncSaleDue() { $('#saleDueWrap').hidden = $('#salePayState').value !== 'pending'; if (!$('#saleDueWrap').hidden && !$('#saleDue').value) $('#saleDue').value = addDaysISO($('#saleDate').value || today(), 1); }
+function syncSaleDue() { const v = $('#salePayState').value; $('#saleDueWrap').hidden = v === 'paid'; $('#saleDueLbl').textContent = v === 'credit' ? 'Fecha límite (opcional)' : 'Fecha límite de pago'; if (v === 'pending' && !$('#saleDue').value) $('#saleDue').value = addDaysISO($('#saleDate').value || today(), 1); }
 function syncPurDue() { $('#purDueWrap').hidden = $('#purPayState').value !== 'credit'; if (!$('#purDueWrap').hidden && !$('#purDue').value) $('#purDue').value = addDaysISO($('#purDate').value || today(), 15); }
 $('#salePayState').onchange = syncSaleDue; $('#purPayState').onchange = syncPurDue;
+
+/* ===== Calculadora de cambio (pago en efectivo) ===== */
+let saleTotNow = 0;
+function updateCash() {
+  const isCash = /efectivo/i.test($('#salePay').value || '');
+  $('#saleCash').hidden = !isCash; if (!isCash) return;
+  const got = $('#saleCashIn').value === '' ? null : num($('#saleCashIn').value);
+  const box = $('#saleChange');
+  if (!saleTotNow) { box.className = 'cashres'; box.textContent = 'Agrega piezas para calcular'; return; }
+  if (got === null) { box.className = 'cashres'; box.innerHTML = `Total a cobrar <b>${money(saleTotNow)}</b>`; return; }
+  const d = Math.round((got - saleTotNow) * 100) / 100;
+  if (d > 0.004) { box.className = 'cashres ok'; box.innerHTML = `Cambio a regresar <b>${money(d)}</b>`; }
+  else if (d > -0.004) { box.className = 'cashres ok'; box.innerHTML = 'Pago exacto, sin cambio'; }
+  else { box.className = 'cashres zero'; box.innerHTML = `Faltan <b>${money(-d)}</b>`; }
+}
+$('#salePay').addEventListener('change', updateCash);
+$('#saleCashIn').addEventListener('input', updateCash);
+$('#saleCashQuick').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $('#saleCashIn').value = b.dataset.v === 'x' ? Math.round(saleTotNow * 100) / 100 : b.dataset.v; updateCash(); });
+
+/* ===== Imprimir etiqueta "Para" y ticket de bolsa ===== */
+let tkLast = null;
+const PR = {
+  label: { '40x30': ['40mm 30mm', '0', 'Etiqueta 40 × 30 mm'] },
+  ticket: { '58': ['58mm auto', '3mm', 'Rollo 58 mm'], '80': ['80mm auto', '4mm', 'Rollo 80 mm'], carta: ['letter', '15mm', 'Hoja carta'] }
+};
+function printHTML(body, size, margin, extraCss, fontHref) {
+  const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f); const d = f.contentWindow.document;
+  d.open(); d.write(`<!doctype html><html><head><meta charset="utf-8"><title>Kutelle</title>${fontHref ? `<link rel="stylesheet" href="${fontHref}">` : ''}<style>@page{size:${size};margin:${margin}}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{margin:0;padding:0;background:#fff;color:#000;font-family:'Jost','Helvetica Neue',Arial,sans-serif}${extraCss}</style></head><body>${body}</body></html>`); d.close();
+  const go_ = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { toast('No se pudo abrir la impresión'); } setTimeout(() => f.remove(), 60000); };
+  const wait = fontHref && d.fonts && d.fonts.load ? Promise.race([d.fonts.load('32px "Dancing Script"').catch(() => 0), new Promise(r => setTimeout(r, 2500))]) : new Promise(r => setTimeout(r, 350));
+  wait.then(() => setTimeout(go_, 250));
+}
+const logoCss = `.logo{display:block;margin:0 auto;background:#000;-webkit-mask:url(${TK_LOGO}) center/contain no-repeat;mask:url(${TK_LOGO}) center/contain no-repeat;aspect-ratio:${720 / 133}}`;
+function printLabel(tk, sizeKey) {
+  const [size, margin] = PR.label['40x30']; const name = (tk.client || '').trim() || 'Clienta';
+  const fs = name.length > 26 ? 3.9 : name.length > 18 ? 4.6 : name.length > 11 ? 5.6 : 6.8;
+  const css = `${logoCss}html,body{width:40mm;height:30mm;overflow:hidden}.wrap{width:40mm;height:30mm;padding:1mm}.frame{width:100%;height:100%;border:.45mm solid #000;border-radius:2.2mm;outline:.25mm solid #000;outline-offset:-1.1mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6mm;padding:1.6mm;text-align:center;overflow:hidden}.para{font-size:2.1mm;letter-spacing:.5mm;text-transform:uppercase;font-weight:500}.nm{font-family:'Dancing Script','Segoe Script','Brush Script MT','Apple Chancery','Lucida Handwriting',cursive;font-style:italic;font-size:${fs}mm;font-weight:700;line-height:1;word-break:break-word;max-height:12mm;overflow:hidden}.logo{width:11mm;margin:0 auto}`;
+  printHTML(`<div class="wrap"><div class="frame"><div class="para">Para:</div><div class="nm">${esc(name)}</div><div class="logo"></div></div></div>`, size, margin, css, 'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+}
+function printBagTicket(tk, sizeKey) {
+  const [size, margin] = PR.ticket[sizeKey]; const narrow = sizeKey === '58';
+  const m = n => { n = Math.round(num(n) * 100) / 100; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+  const L = tk.rows.map(r => { const p = D.bySku[r.sku]; const q = num(r.qty), u = num(r.unitPrice), dsc = num(r.discount); return { name: titleOf(p), sz: sizeText(p), q, u, dsc }; });
+  const sub = L.reduce((a, l) => a + l.q * l.u, 0), disc = L.reduce((a, l) => a + l.dsc, 0), fee = tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0, total = sub - disc + fee;
+  const css = `${logoCss}body{padding:0}.t{width:${sizeKey === 'carta' ? '80mm' : '100%'};margin:0 auto;font-size:${narrow ? 3.2 : 3.6}mm;line-height:1.35}.logo{width:${narrow ? 30 : 38}mm;margin-bottom:2mm}.c{text-align:center}.d{border-top:.4mm dashed #000;margin:2.5mm 0}.r{display:flex;justify-content:space-between;gap:3mm}.r span:last-child{white-space:nowrap}.it{margin-bottom:1.6mm}.it small{display:block;font-size:.85em}.tot{font-size:1.25em;font-weight:700}.big{font-size:1.05em;font-weight:600;letter-spacing:.3mm}`;
+  const items = L.map(l => `<div class="it"><div class="r"><span>${esc(l.name)}${l.sz ? ' · ' + esc(l.sz) : ''}</span><span>${m(l.q * l.u)}</span></div>${l.q > 1 ? `<small>${l.q} × ${m(l.u)}</small>` : ''}${l.dsc > 0 ? `<small>Descuento −${m(l.dsc)}</small>` : ''}</div>`).join('');
+  const extra = (disc > 0 || fee > 0 || tk.shipMode === 'free') ? `<div class="r"><span>Subtotal</span><span>${m(sub)}</span></div>${disc > 0 ? `<div class="r"><b>Descuento${tk.pct ? ' (' + tk.pct + '%)' : ''}</b><b>−${m(disc)}</b></div>` : ''}${fee > 0 ? `<div class="r"><span>Envío</span><span>${m(fee)}</span></div>` : tk.shipMode === 'free' ? '<div class="r"><span>Envío</span><span>GRATIS</span></div>' : ''}<div class="d"></div>` : '';
+  printHTML(`<div class="t"><div class="logo"></div><div class="c">${fmtDate(tk.date)}${tk.number ? ' · #' + esc(tk.number) : ''}</div><div class="d"></div>${items}<div class="d"></div>${extra}<div class="r tot"><span>TOTAL</span><span>${m(total)}</span></div>${disc > 0 ? `<div class="c" style="margin-top:1.5mm"><b>¡Ahorraste ${m(disc)}!</b></div>` : ''}<div class="d"></div><div class="c big">¡Gracias por tu compra!</div><div class="c" style="margin-top:1mm">@kutelle</div></div>`, size, margin, css);
+}
+$('#tkPrint').onclick = () => { if (!tkLast) return; $('#prLabelSize').value = '40x30'; $('#prTicketSize').value = lsGet('prTicket', '80') === '58' ? '58' : '80'; $('#dPrint').showModal(); };
+$('#prLabelGo').onclick = () => { lsSet('prLabel', $('#prLabelSize').value); printLabel(tkLast, $('#prLabelSize').value); };
+$('#prTicketGo').onclick = () => { lsSet('prTicket', $('#prTicketSize').value); printBagTicket(tkLast, $('#prTicketSize').value); };
 $('#saleDel').onclick = async () => {
   const k = T.sale.editKey; if (!k || !confirm('¿Eliminar esta venta? Las piezas regresan al inventario.')) return;
   try { for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === k) await store.del('sales', id); $('#dSale').close(); toast('Venta eliminada'); } catch { toast('No se pudo eliminar'); }
@@ -1955,11 +2082,12 @@ $('#saleDel').onclick = async () => {
 $('#saleShip').onclick = () => { const k = T.sale.editKey; $('#dSale').close(); openShip(null, k); };
 $('#saleRet').onclick = () => { const k = T.sale.editKey; $('#dSale').close(); openRet(null, k); };
 function renderSales() {
+  const arDebt = {}; cuentas().all.ar.forEach(x => { arDebt[x.ref] = x.bal; });
   const y = year(); const yr = D.tickets.filter(t => String(t.date).startsWith(String(y)));
   const tot = yr.reduce((s, t) => s + t.total, 0), pr = yr.reduce((s, t) => s + t.profit, 0);
   $('#salesStats').textContent = D.tickets.length ? `${yr.length} ventas en ${y}, total ${money(tot)}, ganancia bruta ${money(pr)}` : '';
   $('#salesList').innerHTML = D.tickets.length ? D.tickets.map(t => `<button class="row" type="button" data-n="${esc(t.number)}">
-    <div class="l"><b>${esc(t.client || 'Venta ' + t.number)}</b><small>N° ${esc(t.number)}, ${fmtDate(t.date)}${t.channel ? ', ' + esc(t.channel) : ''}${t.rows[0] && t.rows[0].payState === 'pending' ? ' · <b class="low">Por cobrar</b>' : ''}</small></div>
+    <div class="l"><b>${esc(t.client || 'Venta ' + t.number)}</b><small>N° ${esc(t.number)}, ${fmtDate(t.date)}${t.channel ? ', ' + esc(t.channel) : ''}${arDebt[t.number] > 0.005 ? ' · <b class="low">Debe ' + money(arDebt[t.number]) + '</b>' : ''}</small></div>
     <div class="r"><b class="num">${money(t.total)}</b><small>${t.units} ${t.units === 1 ? 'pieza' : 'piezas'}</small></div></button>`).join('')
     : `<div class="empty"><b>Aún no hay ventas</b>Escanea una pieza en modo Vender o toca “Nueva venta”.</div>`;
 }
