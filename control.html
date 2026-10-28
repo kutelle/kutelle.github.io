@@ -560,6 +560,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <label class="lbl" for="saleClientSel">Clienta</label>
     <select class="field" id="saleClientSel"></select>
     <input class="field" id="saleClient" maxlength="80" placeholder="Nombre de la clienta" style="margin-top:8px" hidden>
+    <label class="lbl" for="salePhone">WhatsApp de la clienta (opcional)</label><input class="field" id="salePhone" type="tel" maxlength="30" inputmode="tel" placeholder="10 dígitos">
     <div class="row2">
       <div><label class="lbl" for="saleChannel">Canal</label><select class="field" id="saleChannel"></select></div>
       <div><label class="lbl" for="salePay">Método de pago</label><select class="field" id="salePay"></select></div>
@@ -583,6 +584,12 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     </div>
     <label class="lbl" for="salePayState">Estado del pago</label>
     <select class="field" id="salePayState"><option value="paid">Pagada</option><option value="pending">Pendiente de pago (por cobrar)</option><option value="credit">A crédito (paga con abonos)</option></select>
+    <div id="salePlanBox" hidden style="margin-top:10px;padding:12px;border:1.5px solid var(--line);border-radius:12px">
+      <label class="lbl" for="salePlanMode" style="margin-top:0">Plan de abonos (4 semanas, el primero es hoy)</label>
+      <select class="field" id="salePlanMode"><option value="equal">Mismo monto cada semana</option><option value="custom">Monto distinto (lo decide la clienta)</option></select>
+      <div id="salePlanRows"></div>
+      <p class="hint" id="salePlanHint"></p>
+    </div>
     <div id="saleDueWrap" hidden><label class="lbl" for="saleDue" id="saleDueLbl">Fecha límite de pago</label><input class="field" type="date" id="saleDue"></div>
     <label class="lbl" for="saleShipMode">Envío</label>
     <select class="field" id="saleShipMode"><option value="none">Sin costo de envío (punto medio)</option><option value="free">Envío gratis (llegó a $999)</option><option value="paid">Envío a domicilio: $40</option></select>
@@ -591,7 +598,6 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <label class="lbl" for="saleAddr" style="margin-top:0">Dirección de entrega</label><input class="field" id="saleAddr" maxlength="200" placeholder="Calle, número, colonia">
       <div class="row2">
         <div><label class="lbl" for="saleCity">Ciudad</label><input class="field" id="saleCity" maxlength="60"></div>
-        <div><label class="lbl" for="salePhone">WhatsApp de la clienta</label><input class="field" id="salePhone" type="tel" maxlength="30" inputmode="tel"></div>
       </div>
       <p class="hint">Al guardar, se crea solo el registro del envío en Ventas → Envíos.</p>
     </div>
@@ -768,14 +774,16 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   <div class="dbody">
     <p class="hint" style="margin-top:0">Listo para mandarlo a tu clienta. En el celular también puedes mantener presionada la imagen para guardarla.</p>
     <img id="tkImg" alt="Ticket de venta" style="width:100%;max-width:420px;display:block;margin:0 auto;border-radius:8px">
-    <div class="actions"><button type="button" class="btn" id="tkPrint">Imprimir etiqueta y ticket</button><button type="button" class="btn" id="tkSave">Guardar imagen</button><button type="button" class="btn primary" id="tkShare">Compartir</button></div>
+    <div class="actions"><button type="button" class="btn" id="tkWa">Enviar por WhatsApp</button><button type="button" class="btn" id="tkPrint">Imprimir etiqueta y ticket</button><button type="button" class="btn" id="tkSave">Guardar imagen</button><button type="button" class="btn primary" id="tkShare">Compartir</button></div>
   </div>
 </dialog>
 <dialog id="dPay" aria-labelledby="payTitle">
   <div class="dhead"><h2 id="payTitle">Cuenta</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
   <div class="dbody">
     <div class="kv num" id="payInfo"></div>
-    <label class="lbl">Abonos</label>
+    <label class="lbl" id="payPlanLbl" hidden>Plan de abonos</label>
+    <div class="kv num" id="payPlan"></div>
+    <label class="lbl">Abonos registrados</label>
     <div class="kv num" id="payHist"></div>
     <form id="payForm" autocomplete="off" novalidate>
       <div class="row2">
@@ -787,7 +795,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <label class="lbl" for="payDue">Fecha límite</label>
       <div class="inline"><input class="field" type="date" id="payDue"><button type="button" class="btn" id="payDueSave">Cambiar fecha</button></div>
     </form>
-    <div class="actions"><button type="button" class="btn" id="payTicket" hidden>Ver ticket</button><button type="button" class="btn" id="payOpen">Abrir</button></div>
+    <div class="actions"><button type="button" class="btn" id="payWa">Recordar por WhatsApp</button><button type="button" class="btn" id="payTicket" hidden>Ver ticket</button><button type="button" class="btn" id="payOpen">Abrir</button></div>
   </div>
 </dialog>
 <dialog id="dPiece" aria-labelledby="pcTitle">
@@ -1700,7 +1708,7 @@ function updateTotal(kind) {
     const sh = $('#saleShipHint'); sh.className = 'hint';
     sh.textContent = !t.items.length ? '' : mode === 'free' && goods < SHIP_FREE ? `Ojo: la compra es de ${money(goods)} y aún no llega a $${SHIP_FREE} para envío gratis.` : mode !== 'free' && goods >= SHIP_FREE ? `La compra llega a $${SHIP_FREE}: le corresponde envío gratis a domicilio.` : '';
     const u = t.items.reduce((s, it) => s + num(it.qty), 0);
-    $('#saleSub').textContent = u ? `Total a cobrar, ${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#saleTotal').textContent = money(tot); saleTotNow = tot; if (typeof updateCash === 'function') updateCash();
+    $('#saleSub').textContent = u ? `Total a cobrar, ${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#saleTotal').textContent = money(tot); saleTotNow = tot; if (typeof updateCash === 'function') updateCash(); if (typeof planSync === 'function') planSync();
     const pctTxt = sub > 0 && disc > 0 ? ` (${Math.round(disc / sub * 1000) / 10}%)` : '';
     $('#saleCalc').innerHTML = u ? [
       ['Precio normal', money(sub)],
@@ -1776,7 +1784,7 @@ $('#purScan').onclick = () => ticketScanner('purchase');
 /* Sale */
 function openSale(number, firstSku) {
   const t = T.sale; const L = lists();
-  t.editKey = number ? String(number) : null; t.items = [];
+  t.editKey = number ? String(number) : null; t.items = []; t.plan = null; t.planMode = 'equal'; t.planDatesKept = false;
   const tk = number ? D.tickets.find(x => x.number === String(number)) : null;
   $('#saleTitle').textContent = tk ? 'Venta ' + tk.number : 'Nueva venta';
   $('#saleDate').value = tk ? tk.date : today();
@@ -1789,7 +1797,10 @@ function openSale(number, firstSku) {
   $('#salePct').value = pcts.length === 1 && pcts[0] ? pcts[0] : ''; syncPctChips();
   $('#saleShipMode').value = tk && tk.rows[0] && tk.rows[0].shipMode ? tk.rows[0].shipMode : 'none';
   { const sh = tk ? Object.values(S.shipments).find(x => String(x.saleNo) === tk.number) : null; $('#saleAddr').value = sh ? (sh.address || '') : ''; $('#saleCity').value = sh ? (sh.city || '') : 'León'; $('#salePhone').value = sh ? (sh.phone || '') : ''; }
-  $('#salePayState').value = tk && tk.rows[0] && ['pending', 'credit'].includes(tk.rows[0].payState) ? tk.rows[0].payState : 'paid'; $('#saleDue').value = tk && tk.rows[0] && tk.rows[0].dueDate || ''; syncSaleDue();
+  $('#salePayState').value = tk && tk.rows[0] && ['pending', 'credit'].includes(tk.rows[0].payState) ? tk.rows[0].payState : 'paid'; $('#saleDue').value = tk && tk.rows[0] && tk.rows[0].dueDate || '';
+  if (tk && tk.rows[0] && tk.rows[0].plan) { t.plan = tk.rows[0].plan.map(r => ({ date: r.date, amount: num(r.amount) })); t.planMode = tk.rows[0].planMode || 'equal'; t.planDatesKept = true; } $('#salePlanMode').value = t.planMode;
+  $('#salePhone').value = tk ? (tk.rows[0].phone || (Object.values(S.shipments).find(x => String(x.saleNo) === tk.number) || {}).phone || '') : '';
+  syncSaleDue();
   $('#saleAdd').innerHTML = skuOptions();
   $('#saleExtra').hidden = !tk || !canWrite; $('#saleDel').hidden = !tk; $('#saleTicket').hidden = !tk;
   $('#saleCashIn').value = '';
@@ -1812,9 +1823,12 @@ $('#saleForm').onsubmit = async e => {
   if (number !== t.editKey && Object.values(S.sales).some(r => String(r.number) === number)) { toast('Ese N° de venta ya existe'); return; }
   const need = {}; items.forEach(it => need[it.sku] = (need[it.sku] || 0) + num(it.qty));
   for (const sku in need) if (need[sku] > availFor(sku)) { toast(`${sku}: solo hay ${availFor(sku)} disponibles`); return; }
+  if ($('#salePayState').value === 'credit') { const sum = (t.plan || []).reduce((a, r) => a + num(r.amount), 0); if (Math.abs(sum - saleTotNow) > 0.5) { toast(`La suma de los abonos (${money(sum)}) no coincide con el total (${money(saleTotNow)})`); return; } if ((t.plan || []).some(r => !r.date)) { toast('Falta la fecha de un abono'); return; } }
   $('#saleSave').disabled = true;
   try {
     const header = { date, number, client: canonClient($('#saleClient').value), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0, payState: $('#salePayState').value, dueDate: $('#salePayState').value === 'pending' ? ($('#saleDue').value || addDaysISO(date, 1)) : $('#salePayState').value === 'credit' ? ($('#saleDue').value || '') : '' };
+    header.phone = $('#salePhone').value.trim();
+    if (header.payState === 'credit') { header.plan = (t.plan || []).map(r => ({ date: r.date, amount: num(r.amount) })); header.planMode = t.planMode; header.dueDate = (header.plan[header.plan.length - 1] || {}).date || ''; }
     lsSet('lastChannel', header.channel); lsSet('lastPay', header.payment);
     if (t.editKey) for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === t.editKey) await store.del('sales', id);
     let k = 0;
@@ -1826,7 +1840,7 @@ $('#saleForm').onsubmit = async e => {
       if (!$('#saleAddr').value.trim()) toast('Falta la dirección de entrega: agrégala en Ventas → Envíos');
     }
     $('#dSale').close(); toast(t.editKey ? 'Venta actualizada' : 'Venta registrada');
-    try { showTicket({ ...header, rows: items.map(it => ({ sku: it.sku, qty: num(it.qty), unitPrice: num(it.unitPrice), discount: num(it.discount) })), pct: salePct() || 0 }); } catch (err) { console.error(err); }
+    try { showTicket({ ...header, paid: paidFor(number), rows: items.map(it => ({ sku: it.sku, qty: num(it.qty), unitPrice: num(it.unitPrice), discount: num(it.discount) })), pct: salePct() || 0 }); } catch (err) { console.error(err); }
   } catch { toast('No se pudo guardar la venta'); }
   finally { $('#saleSave').disabled = false; }
 };
@@ -1847,7 +1861,7 @@ async function drawTicket(tk) {
   const wrapTxt = (txt, font, maxW) => { c.font = font; const out = []; let cur = ''; for (const w of String(txt).split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out; };
   const nameW = TW - PX * 2 - 170;
   const blocks = lines.map(l => ({ l, nm: wrapTxt(l.name, '600 27px ' + FONT, nameW) }));
-  let H = 1000 + (tk.client ? 80 : 0) + (extra ? 200 : 0);
+  let H = 1000 + (tk.client ? 80 : 0) + (extra ? 200 : 0) + (tk.plan && tk.plan.length ? 150 + 56 * tk.plan.length : 0);
   for (const b of blocks) H += (b.nm.length - 1) * 34 + 112 + (b.l.disc > 0 ? 30 : 0);
   cv.width = W; cv.height = H;
   c.fillStyle = BG; c.fillRect(0, 0, W, H);
@@ -1887,6 +1901,14 @@ async function drawTicket(tk) {
   c.fillStyle = INK; c.textAlign = 'left'; c.font = '700 30px ' + FONT; ls('2px'); c.fillText('TOTAL A PAGAR', L, y); ls('0px');
   c.textAlign = 'right'; c.fillStyle = VINO; c.font = '700 44px ' + FONT; c.fillText(m(total), R, y + 2);
   y += 40; dash(y); y += 62;
+  if (tk.plan && tk.plan.length) {
+    const pr = planRows(tk.plan, tk.paid);
+    c.fillStyle = INK; c.textAlign = 'left'; c.font = '600 22px ' + FONT; ls('3px'); c.fillText('PLAN DE ABONOS', L, y); ls('0px');
+    pr.forEach((r, i) => { y += 50; c.font = '500 26px ' + FONT; c.fillStyle = INK; c.textAlign = 'left'; c.fillText(`Abono ${i + 1} · ${fmtShort(r.date)}`, L, y); c.textAlign = 'right'; c.fillStyle = r.covered ? MUTED : INK; c.fillText(m(r.amount) + (r.covered ? '  ✓' : ''), R, y); });
+    const tot_ = sub - disc + fee; y += 58; c.fillStyle = MUTED; c.font = '400 25px ' + FONT; c.textAlign = 'left'; c.fillText('Abonado', L, y); c.textAlign = 'right'; c.fillText(m(num(tk.paid)), R, y);
+    y += 46; c.fillStyle = VINO; c.font = '700 28px ' + FONT; c.textAlign = 'left'; c.fillText('Saldo pendiente', L, y); c.textAlign = 'right'; c.fillText(m(Math.max(0, tot_ - num(tk.paid))), R, y);
+    y += 30; dash(y); y += 62;
+  }
   c.textAlign = 'center'; c.fillStyle = INK; c.font = '600 27px ' + FONT; ls('3px'); c.fillText('¡GRACIAS POR TU COMPRA!', CX + 2, y); ls('0px');
   y += 40; c.fillStyle = MUTED; c.font = '400 23px ' + FONT; c.fillText('Esperamos verte pronto ♡', CX, y);
   y += 36; let seed = 0; for (const ch of String(tk.number)) seed = (seed * 31 + ch.charCodeAt(0)) % 9973; seed = seed || 7;
@@ -1909,7 +1931,7 @@ async function showTicket(tk) {
 function saleToTicket(number) {
   const tk = D.tickets.find(x => x.number === String(number)); if (!tk) return null;
   const pcts = [...new Set(tk.rows.map(r => r.discountPct || 0))];
-  return { number: tk.number, date: tk.date, client: tk.client, rows: tk.rows, shipMode: (tk.rows[0] || {}).shipMode, shipFee: (tk.rows[0] || {}).shipFee, pct: pcts.length === 1 ? pcts[0] : 0 };
+  return { number: tk.number, date: tk.date, client: tk.client, phone: (tk.rows[0] || {}).phone, plan: (tk.rows[0] || {}).plan, paid: paidFor(tk.number), rows: tk.rows, shipMode: (tk.rows[0] || {}).shipMode, shipFee: (tk.rows[0] || {}).shipFee, pct: pcts.length === 1 ? pcts[0] : 0 };
 }
 $('#saleShipMode').onchange = () => { $('#saleShipBox').hidden = $('#saleShipMode').value === 'none'; updateTotal('sale'); }; $('#saleChannel').addEventListener('change', () => updateTotal('sale'));
 $('#saleTicket').onclick = () => { const t = saleToTicket(T.sale.editKey); if (t) showTicket(t); else toast('No se encontró la venta'); };
@@ -1927,7 +1949,7 @@ const addDaysISO = (iso, n) => { const [y, m, d] = String(iso).split('-').map(Nu
 const payDocs = () => Object.entries(S.config).filter(([k, v]) => k.startsWith('pay_') && v && v.ref != null).map(([id, v]) => ({ id, ...v }));
 function cuentas() {
   const pays = payDocs(); const paidOf = (kind, ref) => pays.filter(p => p.kind === kind && String(p.ref) === String(ref)).reduce((s, p) => s + num(p.amount), 0);
-  const ar = D.tickets.filter(t => t.rows[0] && ['pending', 'credit'].includes(t.rows[0].payState)).map(t => { const total = t.total + num(t.rows[0].shipFee); const paid = paidOf('ar', t.number); return { kind: 'ar', ref: t.number, client: (t.client || '').trim(), who: t.client || 'Venta ' + t.number, label: 'N° ' + t.number, date: t.date, due: t.rows[0].dueDate || '', total, paid, bal: total - paid }; });
+  const ar = D.tickets.filter(t => t.rows[0] && ['pending', 'credit'].includes(t.rows[0].payState)).map(t => { const total = t.total + num(t.rows[0].shipFee); const paid = paidOf('ar', t.number); const plan = t.rows[0].plan; let due = t.rows[0].dueDate || '', nextAmt = 0; if (plan && plan.length) { const nx = planRows(plan, paid).find(r => !r.covered); if (nx) { due = nx.date; nextAmt = nx.left; } } return { kind: 'ar', ref: t.number, client: (t.client || '').trim(), who: t.client || 'Venta ' + t.number, label: 'N° ' + t.number, date: t.date, due, nextAmt, phone: t.rows[0].phone || (Object.values(S.shipments).find(x => String(x.saleNo) === t.number) || {}).phone || '', total, paid, bal: total - paid }; });
   const ap = D.ptickets.filter(t => t.rows[0] && t.rows[0].payState === 'credit').map(t => { const paid = paidOf('ap', t.group); return { kind: 'ap', ref: t.group, who: t.supplier || 'Proveedor', label: t.number ? 'Nota ' + t.number : 'Compra', date: t.date, due: t.rows[0].dueDate || '', total: t.total, paid, bal: t.total - paid }; });
   const open = a => a.filter(x => x.bal > 0.005).sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999')));
   return { ar: open(ar), ap: open(ap), all: { ar, ap }, pays };
@@ -1957,7 +1979,7 @@ function renderCuentas() {
   }
   const head = cueTab === 'ar' && cueView === 'client' && cueClient != null ? `<div class="bar w" style="margin-bottom:8px"><button class="btn" id="cueBack" type="button">‹ Todas</button><button class="btn primary" id="cueAbono" type="button">Registrar abono de ${esc(cueClient || 'la clienta')}</button></div>` : '';
   $('#cueList').innerHTML = head + (list.length ? list.map(x => { const di = dueInfo(x.due); return `<button class="row" type="button" data-k="${x.kind}" data-r="${esc(x.ref)}">
-    <div class="l"><b>${esc(x.who)}</b><small>${esc(x.label)}, ${fmtDate(x.date)}</small><small class="${di.cls}">${di.txt}</small></div>
+    <div class="l"><b>${esc(x.who)}</b><small>${esc(x.label)}, ${fmtDate(x.date)}</small><small class="${di.cls}">${di.txt}${x.nextAmt ? ' · abono ' + money(x.nextAmt) : ''}</small></div>
     <div class="r"><b class="num">${money(x.bal)}</b><small>${x.paid > 0 ? 'de ' + money(x.total) : 'pendiente'}</small></div></button>`; }).join('')
     : `<div class="empty"><b>${cueTab === 'ar' ? 'Nadie te debe nada' : 'No debes nada a proveedores'}</b>${cueTab === 'ar' ? 'Cuando registres una venta “A crédito” o “Pendiente de pago”, aparece aquí.' : 'Cuando registres una compra “A crédito”, aparece aquí.'}</div>`);
 }
@@ -1999,7 +2021,8 @@ function openPay(kind, ref) {
   $('#payInfo').innerHTML = [['Documento', x.label + ', ' + fmtDate(x.date)], ['Total', money(x.total)], ['Abonado', money(x.paid)], ['Falta', money(Math.max(0, x.bal))], ['Fecha límite', `<span class="${di.cls}">${x.due ? fmtDate(x.due) + ' · ' + di.txt : 'Sin fecha'}</span>`]].map(([l, v], i) => `<div${i === 3 ? ' class="strong"' : ''}><span>${l}</span><span>${v}</span></div>`).join('');
   const mine = C.pays.filter(p => p.kind === kind && String(p.ref) === String(ref)).sort((a, b) => String(a.date).localeCompare(String(b.date)));
   $('#payHist').innerHTML = mine.length ? mine.map(p => `<div><span>${fmtDate(p.date)}${p.note ? ', ' + esc(p.note) : ''}</span><span>${money(p.amount)} <button type="button" class="linkbtn" data-del="${esc(p.id)}">Quitar</button></span></div>`).join('') : '<div><span>Sin abonos todavía</span><span></span></div>';
-  $('#payAmt').value = x.bal > 0 ? Math.round(x.bal * 100) / 100 : ''; $('#payDate').value = today(); $('#payNote').value = '';
+  $('#payAmt').value = x.bal > 0 ? Math.round((x.nextAmt || x.bal) * 100) / 100 : '';
+  { const tkp = kind === 'ar' ? D.tickets.find(t => t.number === String(ref)) : null; const pl = tkp && tkp.rows[0] && tkp.rows[0].plan; $('#payPlan').innerHTML = pl && pl.length ? planRows(pl, x.paid).map((r, i) => `<div><span>Abono ${i + 1}, ${fmtShort(r.date)}</span><span>${money(r.amount)} ${r.covered ? '✓' : (r.left < r.amount ? '(faltan ' + money(r.left) + ')' : '')}</span></div>`).join('') : ''; $('#payPlanLbl').hidden = !(pl && pl.length); $('#payWa').hidden = kind !== 'ar'; } $('#payDate').value = today(); $('#payNote').value = '';
   $('#payDue').value = x.due || '';
   $('#payAmt').closest('form').hidden = !canWrite;
   $('#payOpen').textContent = kind === 'ar' ? 'Abrir venta' : 'Abrir compra';
@@ -2031,7 +2054,7 @@ $('#payOpen').onclick = () => { if (!payCtx) return; const { kind, ref } = payCt
 $('#saleAbonoBtn').onclick = () => { const n = T.sale.editKey; if (!n) return; $('#dSale').close(); go('cue'); cueTab = 'ar'; cueView = 'sale'; cueClient = null; $$('#cueTabs button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.t === 'ar'))); renderCuentas(); openPay('ar', n); };
 $('#payTicket').onclick = () => { const t = saleToTicket(payCtx.ref); if (t) showTicket(t); };
 // estado de pago en formularios
-function syncSaleDue() { const v = $('#salePayState').value; $('#saleDueWrap').hidden = v === 'paid'; $('#saleDueLbl').textContent = v === 'credit' ? 'Fecha límite (opcional)' : 'Fecha límite de pago'; if (v === 'pending' && !$('#saleDue').value) $('#saleDue').value = addDaysISO($('#saleDate').value || today(), 1); }
+function syncSaleDue() { const v = $('#salePayState').value; $('#saleDueWrap').hidden = v !== 'pending'; if (v === 'pending' && !$('#saleDue').value) $('#saleDue').value = addDaysISO($('#saleDate').value || today(), 1); if (typeof planSync === 'function') planSync(); }
 function syncPurDue() { $('#purDueWrap').hidden = $('#purPayState').value !== 'credit'; if (!$('#purDueWrap').hidden && !$('#purDue').value) $('#purDue').value = addDaysISO($('#purDate').value || today(), 15); }
 $('#salePayState').onchange = syncSaleDue; $('#purPayState').onchange = syncPurDue;
 
@@ -2099,7 +2122,7 @@ $('#saleClientSel').onchange = () => {
   const v = $('#saleClientSel').value, inp = $('#saleClient');
   if (v === '__new') { inp.hidden = false; inp.value = ''; inp.focus(); return; }
   inp.hidden = true; inp.value = (v === '__none' || v === '') ? '' : v;
-  if (v && v !== '__none') { const sh = clientShipDefaults(v); if (sh) { if (!$('#saleAddr').value) $('#saleAddr').value = sh.address || ''; if (!$('#salePhone').value) $('#salePhone').value = sh.phone || ''; if (!$('#saleCity').value || $('#saleCity').value === 'León') $('#saleCity').value = sh.city || $('#saleCity').value; } }
+  if (v && v !== '__none') { if (!$('#salePhone').value) { const lt = D.tickets.find(t => normName(t.client) === normName(v) && t.rows[0] && t.rows[0].phone); const sh0 = clientShipDefaults(v); $('#salePhone').value = (lt && lt.rows[0].phone) || (sh0 && sh0.phone) || ''; } const sh = clientShipDefaults(v); if (sh) { if (!$('#saleAddr').value) $('#saleAddr').value = sh.address || ''; if (!$('#salePhone').value) $('#salePhone').value = sh.phone || ''; if (!$('#saleCity').value || $('#saleCity').value === 'León') $('#saleCity').value = sh.city || $('#saleCity').value; } }
 };
 $('#saleClient').addEventListener('blur', () => { const c = canonClient($('#saleClient').value); if (c && c !== $('#saleClient').value.trim()) { $('#saleClient').value = c; const L = clientList(); if (L.includes(c)) { $('#saleClientSel').value = c; $('#saleClient').hidden = true; toast('Ya existía “' + c + '”: se usó ese nombre'); } } });
 
@@ -2212,6 +2235,52 @@ async function deliverFile(f) {
 const fileSafe = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').slice(0, 30) || 'clienta';
 $('#prLabelPdf').onclick = async () => { if (!tkLast) return; const b = $('#prLabelPdf'); b.disabled = true; try { const cv = await labelCanvas(tkLast); await savePdfFrom(cv, 40, 30, `etiqueta_${fileSafe(tkLast.client)}.pdf`); } finally { b.disabled = false; } };
 $('#prTicketPdf').onclick = async () => { if (!tkLast) return; const b = $('#prTicketPdf'); b.disabled = true; try { const cv = await ticketCanvas(tkLast); await savePdfFrom(cv, 57, cv.height / PXMM, `ticket_${fileSafe(tkLast.number)}.pdf`); } finally { b.disabled = false; } };
+
+/* ===== Plan de abonos (4 semanas) ===== */
+const PLAN_N = 4;
+const fmtShort = iso => { if (!iso) return ''; const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', ''); };
+function planRows(plan, paid) { let left = num(paid); return (plan || []).map(r => { const a = num(r.amount); const cov = Math.min(a, Math.max(0, left)); left -= cov; return { date: r.date, amount: a, covered: a - cov < 0.005, left: Math.round((a - cov) * 100) / 100 }; }); }
+function planBuild() {
+  const t = T.sale, date = $('#saleDate').value || today(), total = saleTotNow || 0;
+  const base = Math.round(total / PLAN_N * 100) / 100; const old = t.plan || [];
+  t.plan = Array.from({ length: PLAN_N }, (_, i) => ({ date: old[i] && t.planDatesKept ? old[i].date : addDaysISO(date, 7 * i), amount: i < PLAN_N - 1 ? base : Math.round((total - base * (PLAN_N - 1)) * 100) / 100 }));
+}
+function planRender() {
+  const t = T.sale; const box = $('#salePlanRows'); const eq = t.planMode !== 'custom';
+  box.innerHTML = (t.plan || []).map((r, i) => `<div class="row2" style="align-items:end"><div><label class="lbl" style="margin-top:8px">Abono ${i + 1}${i === 0 ? ' (hoy)' : ''}</label><input class="field" type="date" data-pi="${i}" data-pk="date" value="${esc(r.date)}"></div><div><label class="lbl" style="margin-top:8px">Monto</label><input class="field num" type="number" min="0" step="0.01" inputmode="decimal" data-pi="${i}" data-pk="amount" value="${r.amount}"${eq ? ' readonly' : ''}></div></div>`).join('');
+  planHint();
+}
+function planHint() {
+  const t = T.sale; const sum = (t.plan || []).reduce((s, r) => s + num(r.amount), 0), tot = saleTotNow || 0; const d = Math.round((tot - sum) * 100) / 100;
+  const h = $('#salePlanHint'); h.className = 'hint'; h.textContent = !tot ? '' : Math.abs(d) < 0.01 ? `Suma de los 4 abonos: ${money(sum)}` : d > 0 ? `Faltan ${money(d)} para completar el total de ${money(tot)}` : `Te pasas por ${money(-d)} del total de ${money(tot)}`; if (tot && Math.abs(d) >= 0.01) h.classList.add('zero');
+}
+function planSync() {
+  const t = T.sale; const on = $('#salePayState').value === 'credit'; $('#salePlanBox').hidden = !on; if (!on) return;
+  if (!t.plan) { planBuild(); planRender(); return; }
+  if (t.planMode !== 'custom') { planBuild(); planRender(); } else planHint();
+}
+$('#salePlanRows').addEventListener('input', e => { const i = e.target.dataset.pi; if (i == null) return; const r = T.sale.plan[+i]; if (e.target.dataset.pk === 'date') { r.date = e.target.value; T.sale.planDatesKept = true; } else { r.amount = num(e.target.value); planHint(); } });
+$('#salePlanMode').onchange = () => { T.sale.planMode = $('#salePlanMode').value; if (T.sale.planMode !== 'custom') planBuild(); planRender(); };
+$('#saleDate').addEventListener('change', () => { T.sale.planDatesKept = false; if ($('#salePayState').value === 'credit') planSync(); });
+
+/* ===== WhatsApp: ticket y recordatorio de abonos ===== */
+const mny = n => { n = Math.round(num(n) * 100) / 100; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+function paidFor(number) { return payDocs().filter(p => p.kind === 'ar' && String(p.ref) === String(number)).reduce((s, p) => s + num(p.amount), 0); }
+function waOpen(phone, text) { const n = waNumber(phone); if (n.length < 11) { toast('Falta el WhatsApp de la clienta (10 dígitos)'); return false; } window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(text), '_blank'); return true; }
+function waTicketText(tk) {
+  const first = (tk.client || '').trim().split(' ')[0]; const rows = (tk.rows || []); const sub = rows.reduce((a, r) => a + num(r.qty) * num(r.unitPrice) - num(r.discount), 0); const total = sub + (tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0);
+  let t = `Hola${first ? ' ' + first : ''} ♡ Gracias por tu compra en ${storeName()}.\nTotal: ${mny(total)}`;
+  if (tk.plan && tk.plan.length) { const pr = planRows(tk.plan, tk.paid); t += '\n\nTu plan de abonos:\n' + pr.map((r, i) => `• Abono ${i + 1}, ${fmtShort(r.date)}: ${mny(r.amount)}${r.covered ? ' ✓' : ''}`).join('\n'); t += `\n\nAbonado: ${mny(num(tk.paid))}\nSaldo pendiente: ${mny(Math.max(0, total - num(tk.paid)))}`; }
+  return t + '\n\nTe comparto tu ticket 🧾';
+}
+function waReminderText(x) {
+  const tk = D.tickets.find(t => t.number === String(x.ref)); const first = ((tk && tk.client) || '').trim().split(' ')[0]; const plan = tk && tk.rows[0] && tk.rows[0].plan;
+  let t = `Hola${first ? ' ' + first : ''} ♡ Te recuerdo tus abonos pendientes en ${storeName()}:\n`;
+  if (plan && plan.length) { const pend = planRows(plan, x.paid).map((r, i) => ({ ...r, n: i + 1 })).filter(r => !r.covered); t += pend.map(r => `• Abono ${r.n}, ${fmtShort(r.date)}: ${mny(r.left)}`).join('\n'); } 
+  t += `\n\nSaldo total: ${mny(x.bal)}\n¡Gracias!`; return t;
+}
+$('#tkWa').onclick = () => { if (!tkLast) return; if (!(tkLast.phone || '').trim()) { toast('Esta venta no tiene WhatsApp. Agrégalo al editar la venta'); return; } waOpen(tkLast.phone, waTicketText(tkLast)); };
+$('#payWa').onclick = () => { if (!payCtx || payCtx.kind !== 'ar') return; const x = cuentas().all.ar.find(a => String(a.ref) === String(payCtx.ref)); if (!x) return; if (!x.phone) { toast('Esta venta no tiene WhatsApp. Agrégalo al editar la venta'); return; } waOpen(x.phone, waReminderText(x)); };
 $('#saleDel').onclick = async () => {
   const k = T.sale.editKey; if (!k || !confirm('¿Eliminar esta venta? Las piezas regresan al inventario.')) return;
   try { for (const [id, r] of Object.entries(S.sales)) if (String(r.number) === k) await store.del('sales', id); $('#dSale').close(); toast('Venta eliminada'); } catch { toast('No se pudo eliminar'); }
