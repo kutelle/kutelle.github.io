@@ -34,10 +34,9 @@ img{max-width:100%;display:block}
 h1{font-family:var(--serif);font-weight:400;font-size:clamp(3.4rem,16vw,6.8rem);line-height:.92;letter-spacing:.01em;margin:0;color:var(--ink)}
 h1 em{font-style:italic}
 .logo{display:block;width:min(78%,420px);aspect-ratio:1/var(--logoR);margin:0;background:currentColor;-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat;font-size:0;color:var(--ink)}
-.unique{margin:18px 0 0;padding:14px 16px;background:var(--mauve);color:#F6EBDD;border-radius:12px;font-family:var(--serif);font-size:clamp(1.1rem,4.6vw,1.35rem);font-weight:600;line-height:1.3;text-align:center;box-shadow:0 6px 18px rgba(87,16,12,.28)}
-.unique::before,.unique::after{content:'\2726';color:#E2BF7F;font-size:.8em;margin:0 10px;vertical-align:.08em}
-.unique b{color:#E2BF7F;font-weight:700}
 .updated{margin:14px 0 0;color:var(--muted);font-size:.95rem;letter-spacing:.01em}
+.unique{display:flex;align-items:center;gap:10px;margin:14px 0 0;padding:10px 14px;max-width:420px;border-radius:14px;background:rgba(255,255,255,.65);border:1px solid rgba(87,16,12,.18);color:var(--ink);font-size:.95rem;line-height:1.35}
+.unique svg{flex:none;width:20px;height:20px;color:var(--mauve)}
 .nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);margin:0 -18px;padding:10px 18px;border-bottom:1px solid var(--line)}
 .rule{width:56px;height:2px;background:var(--mauve);margin:16px 0 0}
 .nav div{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;max-width:1100px;margin:0 auto}
@@ -51,7 +50,7 @@ h2{font-family:var(--serif);font-weight:400;font-style:italic;font-size:2rem;lin
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}
 @media (min-width:700px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (min-width:1000px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-.card{border:0;background:transparent;padding:0;text-align:left;cursor:pointer;display:block;width:100%}
+.card{border:0;background:transparent;padding:0;text-align:left;cursor:pointer;display:block;width:100%;align-self:start}
 .ph{position:relative;aspect-ratio:3/4;border-radius:4px;overflow:hidden;background:var(--mauve-soft)}
 .ph img{width:100%;height:100%;object-fit:contain}
 .ph .none{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--cafe)}
@@ -194,12 +193,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const money = n => { n = Number(n || 0); const d = Math.round(n * 100) % 100 ? 2 : 0; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: 2 }); };
 const HANGER = '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7a2 2 0 1 1 2-2"/><path d="M12 7v1.5L3 15h18l-9-6.5"/></svg>';
 const sizeText = p => [p.size, p.fit ? (p.size ? '(abarca ' + p.fit + ')' : 'Abarca ' + p.fit) : ''].filter(Boolean).join(' ');
-const availText = q => q <= 0 ? 'Agotado' : q === 1 ? '1 pieza disponible' : q + ' disponibles';
+const availText = q => q <= 0 ? 'Agotado' : q === 1 ? '1 disponible, última pieza' : q + ' disponibles';
 let S = { name: 'Kutelle', whatsapp: '' }, products = [], allCats = [], current = 'all', loadedOnce = false;
 
 function header(updatedAt) {
   const updated = updatedAt ? new Date(updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique">Recuerda que todas nuestras prendas son <b>piezas únicas</b></p><button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button>`;
+  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b>.</span></p>` + `<button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button>`;
   document.title = 'Catálogo ' + (S.name || 'Kutelle');
   $('#foot').innerHTML = `<b class="flogo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</b>` + (S.whatsapp ? 'Arma tu lista y envíanosla por WhatsApp o Instagram.<br>¡Gracias por elegirnos!' : 'Gracias por elegirnos.') + `<a class="ig" href="https://instagram.com/kutelle" target="_blank" rel="noopener">@kutelle</a>`;
 }
@@ -210,7 +209,7 @@ function card(p) {
   const out = p.stock <= 0, img = (p.images || [])[0];
   return `<button class="card${out ? ' out' : ''}" data-i="${p.i}" type="button">
     <div class="ph">${img ? `<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy">` : `<div class="none">${HANGER}</div>`}
-      ${out ? '<span class="tag out">Agotado</span>' : p.stock === 1 ? '' : `<span class="tag">${p.stock} disponibles</span>`}</div>
+      ${out ? '<span class="tag out">Agotado</span>' : p.stock > 1 ? `<span class="tag">${p.stock} disponibles</span>` : ''}</div>
     <div class="name">${esc(p.name || p.sku)}</div>
     <div class="meta">${esc([p.color, sizeText(p)].filter(Boolean).join(', '))}</div>
     <div class="price">${money(p.price)}</div></button>`;
@@ -227,7 +226,7 @@ function renderMain() {
 }
 function apply(data) {
   S = { name: data.store || 'Kutelle', whatsapp: data.whatsapp || '' };
-  products = (data.products || []).map((p, i) => ({ ...p, stock: Number(p.stock) || 0, i }));
+  products = (data.products || []).filter(p => !p.hidden && p.visible !== false).map((p, i) => ({ ...p, stock: Number(p.stock) || 0, i }));
   const cats = (data.categories || []).filter(c => products.some(p => (p.category || 'Otros') === c));
   const others = [...new Set(products.map(p => p.category || 'Otros'))].filter(c => !cats.includes(c));
   allCats = [...cats, ...others];
@@ -395,63 +394,86 @@ function loadLogo() {
   });
 }
 async function drawSlip() {
-  try { await Promise.all([document.fonts.load('400 40px "Bodoni Moda"'), document.fonts.load('italic 400 40px "Bodoni Moda"'), document.fonts.load('400 26px Jost'), document.fonts.load('600 26px Jost')]); } catch {}
-  const ls = cartLines(), W = 1080, M = 56, DPR = 1;
-  const sans = 'Jost, "Avenir Next", system-ui, sans-serif', serif = '"Bodoni Moda", Didot, Georgia, serif';
-  const cols = { sku: M, desc: M + 170, talla: 590, cant: 716, precio: 880, imp: W - M };
-  const meas = document.createElement('canvas').getContext('2d'); meas.font = '400 26px ' + sans;
+  try { await Promise.all([document.fonts.load('400 30px Jost'), document.fonts.load('500 30px Jost'), document.fonts.load('600 30px Jost')]); } catch {}
+  const ls = cartLines(), W = 1080, TW = 800, TX = (W - TW) / 2, PADX = 54, X0 = TX + PADX, X1 = TX + TW - PADX, CX = W / 2;
+  const sans = 'Jost, "Avenir Next", system-ui, sans-serif';
+  const INK = '#351715', MUTED = '#6F5B49', VINO = '#57100C', BG = '#DDB5B5';
+  const meas = document.createElement('canvas').getContext('2d');
+  const RIGHT = 190;                                  // ancho de la columna de importes
+  meas.font = '500 28px ' + sans;
   const rows = ls.map(({ p, q }) => {
-    const d = wrap(meas, [p.name || p.sku, p.color].filter(Boolean).join(' · '), 355, 3);
-    const t = wrap(meas, sizeText(p) || '—', 112, 3);
-    const s = wrap(meas, String(p.sku), 150, 2);
-    const n = Math.max(d.length, t.length, s.length);
-    return { p, q, d, t, s, h: n * 34 + 30 };
+    const nm = wrap(meas, [p.name || p.sku, p.color].filter(Boolean).join(' · '), X1 - X0 - RIGHT - 10, 3);
+    meas.font = '400 22px ' + sans;
+    const sub = wrap(meas, 'SKU ' + p.sku + '  ·  Talla ' + (sizeText(p) || '—'), X1 - X0 - RIGHT - 10, 2);
+    meas.font = '500 28px ' + sans;
+    return { p, q, nm, sub, h: nm.length * 36 + sub.length * 28 + 30 };
   });
-  const H0 = 300, HEAD = 56, FOOT = 250;
-  const H = H0 + HEAD + rows.reduce((a, r) => a + r.h, 0) + FOOT;
-  const c = document.createElement('canvas'); c.width = W * DPR; c.height = H * DPR;
-  const x = c.getContext('2d'); x.scale(DPR, DPR);
-  x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#351715'; x.fillRect(0, 0, W, 210);
-  x.fillStyle = '#DDB5B5'; x.font = 'italic 400 40px ' + serif; x.textBaseline = 'alphabetic'; x.fillText('Lista de pedido', M, 92);
-  const logo = await loadLogo();
-  if (logo) { const lw = 400, lh = Math.round(lw * logo.naturalHeight / logo.naturalWidth), t = document.createElement('canvas'); t.width = lw; t.height = lh; const tx = t.getContext('2d'); tx.drawImage(logo, 0, 0, lw, lh); tx.globalCompositeOperation = 'source-in'; tx.fillStyle = '#FFFFFF'; tx.fillRect(0, 0, lw, lh); x.drawImage(t, M, 112); }
-  else { x.fillStyle = '#FFFFFF'; x.font = '400 84px ' + serif; x.fillText(S.name || 'Kutelle', M, 176); }
-  const now = new Date(), pad = n => String(n).padStart(2, '0');
+  const T = 22;                                       // alto de los dientes del papel
+  const HEAD = 420, TOT = 230, FOOT = 330;
+  const rowsH = rows.reduce((a, r) => a + r.h, 0);
+  const TH = T + HEAD + rowsH + TOT + FOOT + T;       // alto del ticket
+  const H = TH + 200;
+  const TY = 100;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const sp = v => { try { x.letterSpacing = v; } catch {} };
+  x.fillStyle = BG; x.fillRect(0, 0, W, H);
+  // papel con bordes dentados
+  const n = TW / 20;
+  x.beginPath(); x.moveTo(TX, TY + T);
+  for (let k = 0; k < n; k++) { x.lineTo(TX + (k + .5) * 20, TY); x.lineTo(TX + (k + 1) * 20, TY + T); }
+  x.lineTo(TX + TW, TY + TH - T);
+  for (let k = n - 1; k >= 0; k--) { x.lineTo(TX + (k + .5) * 20, TY + TH); x.lineTo(TX + k * 20, TY + TH - T); }
+  x.closePath();
+  x.save(); x.shadowColor = 'rgba(53,23,21,.22)'; x.shadowBlur = 36; x.shadowOffsetY = 12;
+  const g = x.createLinearGradient(TX, 0, TX + TW, 0); g.addColorStop(0, '#F1F1F0'); g.addColorStop(.35, '#FFFFFF'); g.addColorStop(.75, '#FAFAFA'); g.addColorStop(1, '#ECECEB');
+  x.fillStyle = g; x.fill(); x.restore();
+  x.textBaseline = 'alphabetic';
+  const dots = yy => { x.fillStyle = INK; for (let dx = X0; dx < X1; dx += 9) x.fillRect(dx, yy, 4, 4); };
+  const now = new Date(), pad = v => String(v).padStart(2, '0');
   slipFolio = 'K' + pad(now.getDate()) + pad(now.getMonth() + 1) + '-' + pad(now.getHours()) + pad(now.getMinutes());
-  x.textAlign = 'right'; x.fillStyle = '#BEA994'; x.font = '400 26px ' + sans;
-  x.fillText(now.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }), W - M, 92);
-  x.fillText('Folio ' + slipFolio, W - M, 130);
-  x.textAlign = 'left';
-  x.fillStyle = '#6F5B49'; x.font = '400 24px ' + sans; x.fillText('Piezas que me gustaría apartar:', M, 262);
-  let y = H0;
-  x.fillStyle = '#F2E7E2'; x.fillRect(M - 12, y - 30, W - 2 * M + 24, HEAD - 6);
-  x.fillStyle = '#57100C'; x.font = '600 22px ' + sans;
-  const hy = y + 6; x.fillText('SKU', cols.sku, hy); x.fillText('DESCRIPCIÓN', cols.desc, hy); x.fillText('TALLA', cols.talla, hy);
-  x.textAlign = 'center'; x.fillText('CANT', cols.cant + 30, hy);
-  x.textAlign = 'right'; x.fillText('PRECIO', cols.precio, hy); x.fillText('IMPORTE', cols.imp, hy); x.textAlign = 'left';
-  y += HEAD - 14;
-  rows.forEach((r, i) => {
-    const top = y, base = top + 28;
-    x.fillStyle = '#351715'; x.font = '400 26px ' + sans;
-    r.s.forEach((t, k) => x.fillText(t, cols.sku, base + k * 34));
-    r.d.forEach((t, k) => x.fillText(t, cols.desc, base + k * 34));
-    r.t.forEach((t, k) => x.fillText(t, cols.talla, base + k * 34));
-    x.textAlign = 'center'; x.fillText(String(r.q), cols.cant + 30, base);
-    x.textAlign = 'right'; x.fillText(money(r.p.price), cols.precio, base);
-    x.font = '600 26px ' + sans; x.fillText(money(r.q * Number(r.p.price || 0)), cols.imp, base); x.textAlign = 'left';
+  let y = TY + T + 70;
+  // logo
+  const logo = await loadLogo();
+  if (logo) { const lw = 300, lh = Math.round(lw * logo.naturalHeight / logo.naturalWidth), t = document.createElement('canvas'); t.width = lw; t.height = lh; const tx = t.getContext('2d'); tx.drawImage(logo, 0, 0, lw, lh); tx.globalCompositeOperation = 'source-in'; tx.fillStyle = INK; tx.fillRect(0, 0, lw, lh); x.drawImage(t, CX - lw / 2, y); y += lh + 62; }
+  else { x.fillStyle = INK; x.font = '500 54px ' + sans; x.textAlign = 'center'; sp('10px'); x.fillText((S.name || 'Kutelle').toUpperCase(), CX, y + 44); sp('0px'); y += 110; }
+  x.textAlign = 'center'; x.fillStyle = INK; x.font = '400 42px ' + sans; sp('7px'); x.fillText('LISTA DE PEDIDO', CX, y); sp('0px');
+  y += 62;
+  x.font = '400 25px ' + sans; x.fillStyle = INK;
+  x.textAlign = 'left'; x.fillText(now.toLocaleDateString('es-MX', { day: 'numeric', month: 'numeric', year: 'numeric' }) + ' - ' + now.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }).toUpperCase().replace(/\./g, '').replace(/\s/g, ''), X0, y);
+  x.textAlign = 'right'; x.fillText('Folio ' + slipFolio, X1, y);
+  y += 54; dots(y);
+  y += 62;
+  x.textAlign = 'left'; x.fillStyle = INK; x.font = '400 26px ' + sans; sp('3px'); x.fillText('ARTÍCULO', X0, y); x.textAlign = 'right'; x.fillText('IMPORTE', X1, y); sp('0px');
+  y += 24;
+  rows.forEach(r => {
+    let ry = y + 38;
+    x.textAlign = 'left'; x.fillStyle = INK; x.font = '500 28px ' + sans;
+    r.nm.forEach((t, k) => x.fillText(t, X0, ry + k * 36));
+    x.font = '400 22px ' + sans; x.fillStyle = MUTED;
+    r.sub.forEach((t, k) => x.fillText(t, X0, ry + r.nm.length * 36 - 6 + k * 28));
+    x.textAlign = 'right'; x.fillStyle = INK; x.font = '600 28px ' + sans; x.fillText(money(r.q * Number(r.p.price || 0)), X1, ry);
+    x.font = '400 22px ' + sans; x.fillStyle = MUTED; x.fillText(r.q + ' × ' + money(r.p.price), X1, ry + 32);
     y += r.h;
-    x.fillStyle = '#BEA994'; x.fillRect(M, y - 12, W - 2 * M, 1);
   });
-  y += 20;
-  x.fillStyle = '#351715'; x.fillRect(M, y, W - 2 * M, 3);
-  const pcs = cartCount();
-  x.font = '400 28px ' + sans; x.fillStyle = '#6F5B49'; x.fillText(pcs + (pcs === 1 ? ' pieza' : ' piezas'), M, y + 62);
-  x.fillStyle = '#351715'; x.font = '400 46px ' + serif; x.textAlign = 'right';
-  x.fillText('Total  ' + money(cartTotal()), W - M, y + 66); x.textAlign = 'left';
-  if (ENVIO_GRATIS > 0 && cartTotal() >= ENVIO_GRATIS) { x.fillStyle = '#57100C'; x.font = '600 24px ' + sans; x.textAlign = 'right'; x.fillText('Incluye envío gratis a domicilio en León', W - M, y + 104); x.textAlign = 'left'; }
-  x.fillStyle = '#6F5B49'; x.font = '400 22px ' + sans;
-  x.fillText('Sujeto a disponibilidad. Envía esta imagen para confirmar tu pedido y recibir los datos de pago.', M, y + 150, W - 2 * M);
+  y += 6; dots(y);
+  const pcs = cartCount(), total = cartTotal();
+  y += 78;
+  x.textAlign = 'left'; x.fillStyle = INK; x.font = '400 34px ' + sans; sp('5px'); x.fillText('TOTAL', X0, y); sp('0px');
+  x.textAlign = 'right'; x.font = '600 44px ' + sans; x.fillText(money(total), X1, y);
+  y += 46; x.font = '400 24px ' + sans; x.fillStyle = MUTED; x.textAlign = 'left'; x.fillText(pcs + (pcs === 1 ? ' pieza' : ' piezas'), X0, y);
+  if (ENVIO_GRATIS > 0 && total >= ENVIO_GRATIS) { x.textAlign = 'right'; x.fillStyle = VINO; x.font = '600 23px ' + sans; x.fillText('Incluye envío gratis en León', X1, y); }
+  y += 72;
+  x.textAlign = 'center'; x.fillStyle = '#8A8A87'; x.font = '400 30px ' + sans; sp('3px'); x.fillText('¡GRACIAS POR ELEGIRNOS!', CX, y); sp('0px');
+  // código de barras decorativo a partir del folio
+  y += 38;
+  let seed = 0; for (const ch of slipFolio) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const bw = 520; let bx = CX - bw / 2; x.fillStyle = '#111';
+  while (bx < CX + bw / 2 - 6) { const w = 2 + Math.floor(rnd() * 5); x.fillRect(bx, y, w, 96); bx += w + 2 + Math.floor(rnd() * 5); }
+  y += 140; x.fillStyle = MUTED; x.font = '400 21px ' + sans; x.textAlign = 'center';
+  const note = wrap(x, 'Sujeto a disponibilidad. Envía esta imagen para confirmar tu pedido y recibir los datos de pago.', TW - 2 * PADX, 3);
+  note.forEach((t, k) => x.fillText(t, CX, y + k * 28));
   return new Promise(res => c.toBlob(b => res(b), 'image/png'));
 }
 $('#gen').onclick = async () => {

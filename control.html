@@ -288,6 +288,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <button class="chip" data-f="low" aria-pressed="false">Reordenar</button>
       <button class="chip" data-f="zero" aria-pressed="false">Agotados</button>
       <button class="chip" data-f="nocode" aria-pressed="false">Sin código</button>
+      <button class="chip" data-f="hidden" aria-pressed="false">Ocultos</button>
     </div>
     <p class="stats num" id="invStats"></p>
     <div class="list" id="invList"></div>
@@ -467,6 +468,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <button class="btn out" id="dSell" type="button">Vender</button>
       <button class="btn in" id="dBuy" type="button">Registrar compra</button>
     </div>
+    <button class="btn" id="dVis" type="button" style="width:100%;margin-top:8px"></button>
     <div class="bc" id="dBcBox"><svg id="dBarcode"></svg></div>
     <div id="dNoCode" class="empty w" hidden><b>Esta pieza aún no tiene código</b>Escanea el código que trae para ligarlo.<div style="margin-top:10px"><button class="btn primary" id="dAssign" type="button">Escanear su código</button></div></div>
     <button class="btn" id="btnLabel" type="button" style="width:100%" hidden>Guardar etiqueta para imprimir</button>
@@ -480,12 +482,14 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
 <dialog id="dForm" aria-labelledby="fTitle">
   <div class="dhead"><h2 id="fTitle">Nuevo producto</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
   <form class="dbody" id="pForm" autocomplete="off" novalidate>
-    <label class="lbl" style="margin-top:0" id="fPhotosLbl">Fotos del producto (3)</label>
+    <label class="lbl" style="margin-top:0" id="fPhotosLbl">Fotos del producto (hasta 3)</label>
     <div class="slots" id="fSlots">
       <label class="slot"><img alt=""><span>Foto 1</span><input type="file" accept="image/*" hidden></label>
       <label class="slot"><img alt=""><span>Foto 2</span><input type="file" accept="image/*" hidden></label>
       <label class="slot"><img alt=""><span>Foto 3</span><input type="file" accept="image/*" hidden></label>
     </div>
+    <label class="chk" style="display:flex;gap:10px;align-items:center;margin:12px 0 2px;font-weight:600"><input type="checkbox" id="fShow" style="width:20px;height:20px"> Mostrar en el catálogo de mis clientas</label>
+    <p class="hint" id="fShowHint" style="margin-top:2px"></p>
     <div class="row2">
       <div><label class="lbl" for="fSku">SKU</label><input class="field" id="fSku" maxlength="60" autocapitalize="characters"></div>
       <div><label class="lbl" for="fPrice">Precio de venta</label><input class="field num" id="fPrice" type="number" step="0.01" min="0" inputmode="decimal"></div>
@@ -790,12 +794,14 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   <div class="dhead"><h2 id="pcTitle">Pieza nueva</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
   <form class="dbody" id="pForm2" autocomplete="off" novalidate>
     <p class="hint" id="pcErr" hidden style="color:var(--out);font-weight:600;margin-top:0"></p>
-    <label class="lbl" style="margin-top:0">Fotos (mínimo 1, ideal 3)</label>
+    <label class="lbl" style="margin-top:0">Fotos (opcional, hasta 3)</label>
     <div class="slots" id="pcSlots">
       <label class="slot"><img alt="" style="display:none"><span>Foto 1</span><input type="file" accept="image/*" hidden></label>
       <label class="slot"><img alt="" style="display:none"><span>Foto 2</span><input type="file" accept="image/*" hidden></label>
       <label class="slot"><img alt="" style="display:none"><span>Foto 3</span><input type="file" accept="image/*" hidden></label>
     </div>
+    <label style="display:flex;gap:10px;align-items:center;margin:12px 0 2px;font-weight:600"><input type="checkbox" id="pcShow" style="width:20px;height:20px"> Mostrar en el catálogo</label>
+    <p class="hint" id="pcShowHint" style="margin-top:2px"></p>
     <div class="row2">
       <div><label class="lbl" for="pcSku">SKU</label><input class="field" id="pcSku" maxlength="60" autocapitalize="characters"></div>
       <div><label class="lbl" for="pcQty">Cantidad</label><input class="field num" id="pcQty" type="number" min="1" step="1" inputmode="numeric"></div>
@@ -1304,6 +1310,7 @@ function renderInv() {
     if (invFilter === 'low' && p.status !== 'Reordenar') return false;
     if (invFilter === 'zero' && p.status !== 'Agotado') return false;
     if (invFilter === 'nocode' && p.barcode) return false;
+    if (invFilter === 'hidden' && !p.hidden) return false;
     if (!q) return true;
     return [p.name, p.sku, p.barcode, p.color, p.category].some(v => String(v || '').toLowerCase().includes(q));
   });
@@ -1316,7 +1323,7 @@ function renderInv() {
   list.innerHTML = rows.map(p => `
     <button class="item" data-id="${esc(p.id)}" type="button">
       <img class="thumb" src="${esc(imgSrc(p))}" alt="" loading="lazy">
-      <div class="meta"><div class="name">${esc(titleOf(p))}</div><div class="sub">${esc(subOf(p))}<br><span class="num">${money(p.price)}</span>${p.barcode ? '' : ' <span class="nocode">Sin código</span>'}</div></div>
+      <div class="meta"><div class="name">${esc(titleOf(p))}</div><div class="sub">${esc(subOf(p))}<br><span class="num">${money(p.price)}</span>${p.barcode ? '' : ' <span class="nocode">Sin código</span>'}${p.hidden ? ' <span class="nocode">Oculto</span>' : ''}${imagesOf(p).length ? '' : ' <span class="nocode">Sin fotos</span>'}</div></div>
       <div class="qty"><b class="num ${level(p)}">${p.stock}</b><small>disp.</small></div>
     </button>`).join('');
 }
@@ -1340,6 +1347,7 @@ function renderDetail() {
     g.scrollLeft = 0;
     $('#dDots').innerHTML = ims.length > 1 ? ims.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('') : '';
   }
+  $('#dVis').textContent = p.hidden ? 'Mostrar en el catálogo' : 'Ocultar del catálogo'; $('#dVis').hidden = !canWrite;
   $('#dName').textContent = titleOf(p);
   $('#dSub').textContent = [p.sku && 'SKU ' + p.sku, p.category, p.color, sizeText(p), p.supplier].filter(Boolean).join(', ');
   $('#dPrice').textContent = money(p.price);
@@ -1373,6 +1381,7 @@ $('#dGallery').addEventListener('scroll', () => {
   const g = $('#dGallery'); const i = Math.round(g.scrollLeft / Math.max(1, g.clientWidth));
   $$('#dDots i').forEach((d, k) => d.classList.toggle('on', k === i));
 }, { passive: true });
+$('#dVis').onclick = async () => { const p = D.products.find(x => x.id === currentId); if (!p || !S.products[p.id]) return; try { const d = { ...S.products[p.id], hidden: !p.hidden, updatedAt: Date.now() }; await store.set('products', p.id, d); S.products[p.id] = d; derive(); renderAll(); toast(d.hidden ? 'Oculta del catálogo' : 'Visible en el catálogo'); } catch { toast('No se pudo guardar'); } };
 $('#dSell').onclick = () => { const p = D.products.find(x => x.id === currentId); if (p) openSale(null, p.sku); };
 $('#dBuy').onclick = () => { const p = D.products.find(x => x.id === currentId); if (p) openPurchase(null, p.sku); };
 $('#btnEdit').onclick = () => { $('#dDetail').close(); openForm(currentId); };
@@ -1406,6 +1415,8 @@ $('#btnLabel').onclick = async () => {
 
 /* ---------------- Product form ---------------- */
 let editingId = null, slotFiles = [null, null, null], slotExisting = [null, null, null];
+let showTouched = false;
+function updShow() { const n = [0, 1, 2].filter(i => slotFiles[i] || slotExisting[i]).length; if (!showTouched) $('#fShow').checked = n > 0; $('#fShowHint').textContent = $('#fShow').checked ? (n === 0 ? 'Ojo: no tiene fotos y saldrá así en el catálogo.' : 'Tus clientas la verán en el catálogo.') : 'No se verá en el catálogo hasta que la actives. Sigue en tu inventario.'; }
 function renderSlots() {
   $$('#fSlots .slot').forEach((el, i) => {
     const img = el.querySelector('img');
@@ -1414,6 +1425,7 @@ function renderSlots() {
     el.classList.toggle('filled', !!src);
     el.querySelector('span').textContent = src ? 'Cambiar' : 'Foto ' + (i + 1);
   });
+  if (typeof updShow === 'function' && $('#fShow')) updShow();
 }
 $$('#fSlots input').forEach((inp, i) => inp.addEventListener('change', e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
@@ -1448,7 +1460,7 @@ function openForm(id, code) {
   renderSlots();
   const L = lists();
   $('#fTitle').textContent = p ? 'Editar producto' : 'Nuevo producto';
-  $('#fPhotosLbl').textContent = p ? 'Fotos del producto' : 'Fotos del producto (3)';
+  $('#fPhotosLbl').textContent = 'Fotos del producto (hasta 3)'; showTouched = !!p; $('#fShow').checked = p ? !p.hidden : false; updShow();
   $('#fSku').value = p?.sku || ''; $('#fSku').readOnly = !!p;
   $('#fPrice').value = p ? (p.price ?? '') : '';
   $('#fCode').value = p?.barcode || code || ''; codeUi();
@@ -1502,6 +1514,7 @@ function formErr(msg, el) {
   } else box.scrollIntoView({ block: 'center', behavior: 'smooth' });
   toast(msg);
 }
+$('#fShow').addEventListener('change', () => { showTouched = true; updShow(); });
 $('#pForm').addEventListener('input', e => { if (e.target.classList) { e.target.classList.remove('bad'); } if (!$('#pForm').querySelector('.bad')) $('#fErr').hidden = true; });
 $('#pForm').addEventListener('change', () => { $('#fSlots').classList.remove('bad'); if (!$('#pForm').querySelector('.bad')) $('#fErr').hidden = true; });
 $('#pForm').onsubmit = async e => {
@@ -1511,10 +1524,6 @@ $('#pForm').onsubmit = async e => {
   const sku = $('#fSku').value.trim().toUpperCase();
   const code = $('#fCode').value.trim();
   const priceRaw = $('#fPrice').value;
-  if (isNew) {
-    const have = [0, 1, 2].filter(i => slotFiles[i] || slotExisting[i]).length;
-    if (have < 3) { formErr(3 - have === 1 ? 'Falta 1 foto' : `Faltan ${3 - have} fotos`, $('#fSlots')); return; }
-  }
   if (!sku) { formErr('Escribe el SKU', $('#fSku')); return; }
   if (priceRaw === '') { formErr('Escribe el precio de venta', $('#fPrice')); return; }
   if (isNew && !code) { formErr('Falta el código de barras: escanéalo o escríbelo a mano', $('#fCode')); return; }
@@ -1534,7 +1543,7 @@ $('#pForm').onsubmit = async e => {
       ...prev, sku, price: Math.max(0, num(priceRaw)), barcode: code,
       name: $('#fName').value.trim(), category: $('#fCat').value, size: $('#fSize').value, fit: $('#fFit').value.trim(), color: $('#fColor').value.trim(),
       refPrice: num($('#fRef').value) || null, supplier: $('#fSupplier').value.trim(), cost: Math.max(0, num($('#fCost').value)), packaging: Math.max(0, num($('#fPack').value)),
-      minStock: Math.max(0, parseInt($('#fMin').value, 10) || 0), images,
+      minStock: Math.max(0, parseInt($('#fMin').value, 10) || 0), images, hidden: !$('#fShow').checked,
       initialStock: isNew ? (asPurchase ? 0 : qty) : Math.max(0, parseInt($('#fInit').value, 10) || 0),
       order: prev.order ?? (D.products.reduce((m, p) => Math.max(m, num(p.order)), 0) + 1),
       createdAt: prev.createdAt || Date.now(), updatedAt: Date.now()
@@ -2260,7 +2269,7 @@ $('#purForm').onsubmit = async e => {
     for (const p of pieces) {
       const images = []; for (const f of p.files) images.push(await prepareImage(f));
       const id = pidOf(p.sku);
-      const pdata = { sku: p.sku, price: p.price, barcode: '', name: p.name, category: p.category, size: p.size, fit: p.fit, color: p.color, refPrice: null, supplier: header.supplier, cost: p.cost, packaging: p.pack, minStock: 0, images, initialStock: 0, order: D.products.reduce((m, q) => Math.max(m, num(q.order)), 0) + 1 + pk++, createdAt: Date.now(), updatedAt: Date.now() };
+      const pdata = { sku: p.sku, price: p.price, barcode: '', name: p.name, category: p.category, size: p.size, fit: p.fit, color: p.color, refPrice: null, supplier: header.supplier, cost: p.cost, packaging: p.pack, minStock: 0, images, hidden: !!p.hidden, initialStock: 0, order: D.products.reduce((m, q) => Math.max(m, num(q.order)), 0) + 1 + pk++, createdAt: Date.now(), updatedAt: Date.now() };
       await store.set('products', id, pdata); S.products[id] = pdata;
       await store.set('purchases', 'c_' + store.newId() + (k++), withList({ ...header, sku: p.sku, qty: p.qty, unitCost: p.cost, notes: notes, createdAt: Date.now() }));
     }
@@ -2293,8 +2302,12 @@ $('#purNew').addEventListener('click', e => {
   const ed = e.target.closest('[data-edit]'); if (ed) openPiece(+ed.dataset.edit);
 });
 function lastDefaults() { const ps = D.products.slice().sort((a, b) => num(b.createdAt) - num(a.createdAt)); return ps[0] || {}; }
+let pcShowTouched = false;
+function updPcShow() { const n = pieceFiles.filter(Boolean).length; if (!pcShowTouched) $('#pcShow').checked = n > 0; $('#pcShowHint').textContent = $('#pcShow').checked ? (n === 0 ? 'Ojo: no tiene fotos y saldrá así en el catálogo.' : 'Tus clientas la verán en el catálogo.') : 'No se verá en el catálogo hasta que la actives.'; }
+$('#pcShow') && $('#pcShow').addEventListener('change', () => { pcShowTouched = true; updPcShow(); });
 function renderPieceSlots() {
   $$('#pcSlots .slot').forEach((lab, i) => { const im = lab.querySelector('img'); const f = pieceFiles[i]; if (f) { if (!f.url) f.url = URL.createObjectURL(f.file); im.src = f.url; im.style.display = ''; lab.querySelector('span').hidden = true; } else { im.removeAttribute('src'); im.style.display = 'none'; lab.querySelector('span').hidden = false; } });
+  updPcShow();
 }
 $$('#pcSlots .slot input').forEach((inp, i) => inp.onchange = () => { const f = inp.files[0]; if (!f) return; pieceFiles[i] = { file: f, url: null }; renderPieceSlots(); $('#pcSlots').classList.remove('bad'); inp.value = ''; });
 function pcSuggest() {
@@ -2315,7 +2328,7 @@ function openPiece(idx) {
   $('#pcSku').value = p ? p.sku : ''; $('#pcName').value = p ? p.name : ''; $('#pcFit').value = p ? p.fit : ''; $('#pcColor').value = p ? p.color : '';
   $('#pcCost').value = p ? p.cost : ''; $('#pcPack').value = p ? p.pack : (lsGet('lastPack', d.packaging || '') || ''); $('#pcPrice').value = p ? p.price : ''; $('#pcQty').value = p ? p.qty : '';
   $('#pcTitle').textContent = p ? 'Editar pieza nueva' : 'Pieza nueva';
-  renderPieceSlots(); pcSuggest();
+  pcShowTouched = !!p; $('#pcShow').checked = p ? !p.hidden : false; renderPieceSlots(); pcSuggest();
   $('#dPiece').showModal();
 }
 $('#purNewBtn').onclick = () => openPiece(-1);
@@ -2324,7 +2337,6 @@ $('#pForm2').addEventListener('input', e => { e.target.classList && e.target.cla
 $('#pForm2').onsubmit = e => {
   e.preventDefault(); $('#pcErr').hidden = true;
   const sku = $('#pcSku').value.trim().toUpperCase(); const files = pieceFiles.filter(Boolean);
-  if (!files.length) return pcErr('Agrega al menos 1 foto', $('#pcSlots'));
   if (!sku) return pcErr('Escribe el SKU', $('#pcSku'));
   if (S.products[pidOf(sku)]) return pcErr('Ese SKU ya existe en tu inventario', $('#pcSku'));
   if (T.purchase.newPieces.some((p, i) => i !== pieceEditIdx && p.sku === sku)) return pcErr('Ya agregaste ese SKU en esta compra', $('#pcSku'));
@@ -2332,7 +2344,7 @@ $('#pForm2').onsubmit = e => {
   if ($('#pcCost').value === '') return pcErr('Escribe el costo', $('#pcCost'));
   if ($('#pcPrice').value === '') return pcErr('Escribe el precio de venta', $('#pcPrice'));
   const qty = parseInt($('#pcQty').value, 10); if (!(qty > 0)) return pcErr('Escribe la cantidad', $('#pcQty'));
-  const piece = { sku, name: $('#pcName').value.trim(), category: $('#pcCat').value, size: $('#pcSize').value, fit: $('#pcFit').value.trim(), color: $('#pcColor').value.trim(), cost: Math.max(0, num($('#pcCost').value)), pack: Math.max(0, num($('#pcPack').value)), price: Math.max(0, num($('#pcPrice').value)), qty, files: files.map(f => f.file), urls: files.map(f => f.url) };
+  const piece = { sku, name: $('#pcName').value.trim(), category: $('#pcCat').value, size: $('#pcSize').value, fit: $('#pcFit').value.trim(), color: $('#pcColor').value.trim(), cost: Math.max(0, num($('#pcCost').value)), pack: Math.max(0, num($('#pcPack').value)), price: Math.max(0, num($('#pcPrice').value)), qty, files: files.map(f => f.file), urls: files.map(f => f.url), hidden: !$('#pcShow').checked };
   lsSet('lastPack', piece.pack);
   const a = T.purchase.newPieces; if (pieceEditIdx >= 0) a[pieceEditIdx] = piece; else a.push(piece);
   $('#dPiece').close(); renderPieces();
@@ -3054,7 +3066,7 @@ async function catalogPDF(btn) {
     const { jsPDF } = window.jspdf;
     const W = 400, H = 640, M = 24;
     const C = { paper: '#EBE2D9', ink: '#351715', vino: '#57100C', rosa: '#DDB5B5', arena: '#BEA994', cafe: '#91775E', muted: '#6F5B49', soft: '#F2E7E2', white: '#FFFFFF' };
-    const name = storeName(); const L = lists(); const prods = D.products.slice();
+    const name = storeName(); const L = lists(); const prods = D.products.filter(p => !p.hidden);
     if (!prods.length) { toast('Aún no hay piezas en tu inventario'); return; }
     const catOf = p => p.category || 'Otros';
     const order = [...L.categories.filter(c => prods.some(p => catOf(p) === c)), ...[...new Set(prods.map(catOf))].filter(c => !L.categories.includes(c))];
