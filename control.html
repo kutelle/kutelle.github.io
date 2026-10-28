@@ -2059,22 +2059,14 @@ function printHTML(body, size, margin, extraCss, fontHref) {
   wait.then(() => setTimeout(go_, 250));
 }
 const logoCss = `.logo{display:block;margin:0 auto;background:#000;-webkit-mask:url(${TK_LOGO}) center/contain no-repeat;mask:url(${TK_LOGO}) center/contain no-repeat;aspect-ratio:${720 / 133}}`;
-function printLabel(tk, sizeKey) {
-  const [size, margin] = PR.label['40x30']; const name = (tk.client || '').trim() || 'Clienta';
-  const fs = name.length > 26 ? 3.9 : name.length > 18 ? 4.6 : name.length > 11 ? 5.6 : 6.8;
-  const css = `${logoCss}html,body{width:40mm;height:30mm;overflow:hidden}.wrap{width:40mm;height:30mm;padding:1mm}.frame{width:100%;height:100%;border:.45mm solid #000;border-radius:2.2mm;outline:.25mm solid #000;outline-offset:-1.1mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6mm;padding:1.6mm;text-align:center;overflow:hidden}.para{font-size:2.1mm;letter-spacing:.5mm;text-transform:uppercase;font-weight:500}.nm{font-family:'Dancing Script','Segoe Script','Brush Script MT','Apple Chancery','Lucida Handwriting',cursive;font-style:italic;font-size:${fs}mm;font-weight:700;line-height:1;word-break:break-word;max-height:12mm;overflow:hidden}.logo{width:11mm;margin:0 auto}`;
-  printHTML(`<div class="wrap"><div class="frame"><div class="para">Para:</div><div class="nm">${esc(name)}</div><div class="logo"></div></div></div>`, size, margin, css, 'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+function printImage(cv, wmm, hmm) {
+  const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(f);
+  const d = f.contentWindow.document; d.open(); d.write(`<!doctype html><html><head><meta charset="utf-8"><title>Kutelle</title><style>@page{size:${wmm}mm ${hmm}mm;margin:0}html,body{margin:0;padding:0;background:#fff}img{display:block;width:${wmm}mm;height:${hmm}mm}</style></head><body><img id="i" src="${cv.toDataURL('image/png')}"></body></html>`); d.close();
+  const img = d.getElementById('i'); const go_ = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { toast('No se pudo abrir la impresión'); } setTimeout(() => f.remove(), 60000); };
+  if (img.complete) setTimeout(go_, 150); else img.onload = () => setTimeout(go_, 150);
 }
-function printBagTicket(tk, sizeKey) {
-  const [size, margin] = PR.ticket['57']; const narrow = true;
-  const m = n => { n = Math.round(num(n) * 100) / 100; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
-  const L = tk.rows.map(r => { const p = D.bySku[r.sku]; const q = num(r.qty), u = num(r.unitPrice), dsc = num(r.discount); return { name: titleOf(p), sz: sizeText(p), q, u, dsc }; });
-  const sub = L.reduce((a, l) => a + l.q * l.u, 0), disc = L.reduce((a, l) => a + l.dsc, 0), fee = tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0, total = sub - disc + fee;
-  const css = `${logoCss}body{padding:0}.t{width:${sizeKey === 'carta' ? '80mm' : '100%'};margin:0 auto;font-size:${narrow ? 3.2 : 3.6}mm;line-height:1.35}.logo{width:${narrow ? 30 : 38}mm;margin-bottom:2mm}.c{text-align:center}.d{border-top:.4mm dashed #000;margin:2.5mm 0}.r{display:flex;justify-content:space-between;gap:3mm}.r span:last-child{white-space:nowrap}.it{margin-bottom:1.6mm}.it small{display:block;font-size:.85em}.tot{font-size:1.25em;font-weight:700}.big{font-size:1.05em;font-weight:600;letter-spacing:.3mm}`;
-  const items = L.map(l => `<div class="it"><div class="r"><span>${esc(l.name)}${l.sz ? ' · ' + esc(l.sz) : ''}</span><span>${m(l.q * l.u)}</span></div>${l.q > 1 ? `<small>${l.q} × ${m(l.u)}</small>` : ''}${l.dsc > 0 ? `<small>Descuento −${m(l.dsc)}</small>` : ''}</div>`).join('');
-  const extra = (disc > 0 || fee > 0 || tk.shipMode === 'free') ? `<div class="r"><span>Subtotal</span><span>${m(sub)}</span></div>${disc > 0 ? `<div class="r"><b>Descuento${tk.pct ? ' (' + tk.pct + '%)' : ''}</b><b>−${m(disc)}</b></div>` : ''}${fee > 0 ? `<div class="r"><span>Envío</span><span>${m(fee)}</span></div>` : tk.shipMode === 'free' ? '<div class="r"><span>Envío</span><span>GRATIS</span></div>' : ''}<div class="d"></div>` : '';
-  printHTML(`<div class="t"><div class="logo"></div><div class="c">${fmtDate(tk.date)}${tk.number ? ' · #' + esc(tk.number) : ''}</div><div class="d"></div>${items}<div class="d"></div>${extra}<div class="r tot"><span>TOTAL</span><span>${m(total)}</span></div>${disc > 0 ? `<div class="c" style="margin-top:1.5mm"><b>¡Ahorraste ${m(disc)}!</b></div>` : ''}<div class="d"></div><div class="c big">¡Gracias por tu compra!</div><div class="c" style="margin-top:1mm">@kutelle</div></div>`, size, margin, css);
-}
+async function printLabel(tk) { printImage(await labelCanvas(tk), 40, 30); }
+async function printBagTicket(tk) { const cv = await ticketCanvas(tk); printImage(cv, 57, Math.round(cv.height / PXMM * 100) / 100); }
 $('#tkPrint').onclick = () => { if (!tkLast) return; $('#dPrint').showModal(); };
 $('#prLabelGo').onclick = () => printLabel(tkLast, '40x30');
 $('#prTicketGo').onclick = () => printBagTicket(tkLast, '57');
@@ -2106,57 +2098,80 @@ $('#saleClient').addEventListener('blur', () => { const c = canonClient($('#sale
 const PXMM = 12; // 12 px por mm ≈ 300 dpi
 let fontLinkAdded = false;
 async function ensureScriptFont() {
-  if (!fontLinkAdded) { fontLinkAdded = true; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap'; document.head.appendChild(l); }
-  try { await Promise.race([document.fonts.load('700 40px "Dancing Script"'), new Promise(r => setTimeout(r, 2500))]); } catch {}
+  if (!fontLinkAdded) { fontLinkAdded = true; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@500&family=Nothing+You+Could+Do&family=Jost:wght@400;500;600;700&display=swap'; document.head.appendChild(l); }
+  try { await Promise.race([Promise.all([document.fonts.load('500 40px "Bodoni Moda"'), document.fonts.load('40px "Nothing You Could Do"'), document.fonts.load('500 20px Jost'), document.fonts.load('700 20px Jost')]), new Promise(r => setTimeout(r, 3000))]); } catch {}
 }
-const SCRIPT_FONT = "'Dancing Script','Segoe Script','Brush Script MT','Apple Chancery','Lucida Handwriting',cursive";
+const HAND_FONT = "'Nothing You Could Do','Segoe Script','Brush Script MT','Apple Chancery','Lucida Handwriting',cursive";
+const SERIF_FONT = "'Bodoni Moda','Didot','Bodoni 72','Playfair Display','Times New Roman',serif";
 const monoLogo = async (w) => { const logo = await tkLoadLogo(); if (!logo) return null; const h = Math.round(w * logo.naturalHeight / logo.naturalWidth); const o = document.createElement('canvas'); o.width = w; o.height = h; const c = o.getContext('2d'); c.drawImage(logo, 0, 0, w, h); c.globalCompositeOperation = 'source-in'; c.fillStyle = '#000'; c.fillRect(0, 0, w, h); return o; };
 async function labelCanvas(tk) {
   await ensureScriptFont();
-  const W = 40 * PXMM, H = 30 * PXMM; const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
-  c.fillStyle = '#fff'; c.fillRect(0, 0, W, H); c.strokeStyle = '#000'; c.fillStyle = '#000';
-  const rr = (x, y, w, h, r, lw) => { c.lineWidth = lw; c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); c.stroke(); };
-  rr(1 * PXMM, 1 * PXMM, W - 2 * PXMM, H - 2 * PXMM, 2.2 * PXMM, 0.45 * PXMM); rr(1.9 * PXMM, 1.9 * PXMM, W - 3.8 * PXMM, H - 3.8 * PXMM, 1.5 * PXMM, 0.22 * PXMM);
+  const W = 40 * PXMM, H = 30 * PXMM, mm = v => v * PXMM; const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, W, H); c.strokeStyle = '#000'; c.fillStyle = '#000'; c.lineCap = 'round';
+  // marco en dos esquinas opuestas (arriba-izquierda y abajo-derecha)
+  const x0 = mm(2), y0 = mm(2), x1 = W - mm(2), y1 = H - mm(2), r = mm(5), arm = mm(14); c.lineWidth = mm(0.4);
+  c.beginPath(); c.moveTo(x0 + r + arm, y0); c.lineTo(x0 + r, y0); c.arcTo(x0, y0, x0, y0 + r, r); c.lineTo(x0, y0 + r + mm(7)); c.stroke();
+  c.beginPath(); c.moveTo(x1 - r - arm, y1); c.lineTo(x1 - r, y1); c.arcTo(x1, y1, x1, y1 - r, r); c.lineTo(x1, y1 - r - mm(7)); c.stroke();
+  // "Para:" en serif condensada
   c.textAlign = 'center'; c.textBaseline = 'alphabetic';
-  c.font = `500 ${2.2 * PXMM}px Jost, Arial, sans-serif`; try { c.letterSpacing = (0.5 * PXMM) + 'px'; } catch {} c.fillText('PARA:', W / 2 + 0.25 * PXMM, 6.6 * PXMM); try { c.letterSpacing = '0px'; } catch {}
-  const name = (tk.client || '').trim() || 'Clienta'; const maxW = W - 7 * PXMM;
-  let fs = (name.length > 26 ? 4.4 : 6.4) * PXMM, lines;
-  const wrap = f => { c.font = `italic 700 ${f}px ${SCRIPT_FONT}`; const out = []; let cur = ''; for (const w of name.split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } out.push(cur); return out; };
-  lines = wrap(fs); while ((lines.length > 2 || lines.some(l => c.measureText(l).width > maxW)) && fs > 2.6 * PXMM) { fs -= 0.2 * PXMM; lines = wrap(fs); }
-  const lh = fs * 1.05; const blockH = lines.length * lh; const top = 7.2 * PXMM + (14 * PXMM - blockH) / 2 * 0 ;
-  const baseY = 7.4 * PXMM + fs * 0.85 + ((lines.length === 1) ? 1.2 * PXMM : 0);
-  lines.forEach((l, i) => c.fillText(l, W / 2, baseY + i * lh));
-  const lg = await monoLogo(Math.round(11 * PXMM)); if (lg) c.drawImage(lg, (W - lg.width) / 2, H - 2.4 * PXMM - lg.height - 0.2 * PXMM);
+  c.save(); c.translate(W / 2, mm(10.6)); c.scale(0.74, 1); c.font = `500 ${mm(6.2)}px ${SERIF_FONT}`; c.fillText('Para:', 0, 0); c.restore();
+  // nombre manuscrito
+  const name = (tk.client || '').trim() || 'Clienta'; const maxW = W - mm(9);
+  let fs = mm(name.length > 24 ? 5.2 : name.length > 14 ? 6.6 : 8.4), lines;
+  const wrap = f => { c.font = `${f}px ${HAND_FONT}`; const out = []; let cur = ''; for (const w of name.split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } out.push(cur); return out; };
+  lines = wrap(fs); while ((lines.length > 2 || lines.some(l => c.measureText(l).width > maxW)) && fs > mm(3)) { fs -= mm(0.2); lines = wrap(fs); }
+  const lh = fs * 0.95; const base = lines.length === 1 ? mm(21.6) : mm(17.6);
+  c.lineWidth = mm(0.14); c.lineJoin = 'round'; c.strokeStyle = '#000';
+  lines.forEach((l, i) => { c.fillText(l, W / 2, base + i * lh); c.strokeText(l, W / 2, base + i * lh); });
   return cv;
 }
 async function ticketCanvas(tk) {
-  const W = 57 * PXMM, M = 4.5 * PXMM, CW = W - 2 * M; const big = document.createElement('canvas'); big.width = W; big.height = 12000; const c = big.getContext('2d');
+  await ensureScriptFont();
+  const W = 57 * PXMM, M = 4.5 * PXMM, CW = W - 2 * M; const big = document.createElement('canvas'); big.width = W; big.height = 14000; const c = big.getContext('2d');
   c.fillStyle = '#fff'; c.fillRect(0, 0, W, big.height); c.fillStyle = '#000'; c.strokeStyle = '#000';
-  const F = 'Jost, Arial, sans-serif', fs = 2.9 * PXMM, lh = fs * 1.35;
+  const F = 'Jost, Arial, sans-serif', fs = 2.8 * PXMM, lh = fs * 1.35;
+  const ls = v => { try { c.letterSpacing = v; } catch {} };
   const m = n => { n = Math.round(num(n) * 100) / 100; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
-  const L = tk.rows.map(r => { const p = D.bySku[r.sku]; return { name: titleOf(p) + (sizeText(p) ? ' · ' + sizeText(p) : ''), q: num(r.qty), u: num(r.unitPrice), d: num(r.discount) }; });
+  const L = tk.rows.map(r => { const p = D.bySku[r.sku]; return { name: titleOf(p), meta: [r.sku ? r.sku : '', sizeText(p) ? 'Talla ' + sizeText(p) : ''].filter(Boolean).join(' · '), q: num(r.qty), u: num(r.unitPrice), d: num(r.discount) }; });
   const sub = L.reduce((a, l) => a + l.q * l.u, 0), disc = L.reduce((a, l) => a + l.d, 0), fee = tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0, total = sub - disc + fee;
-  let y = 3 * PXMM;
+  let y = 0;
+  const zig = (top) => { const z = 1.1 * PXMM; c.beginPath(); const yy = y; if (top) { c.moveTo(0, yy + z); for (let x = 0; x < W; x += 2 * z) { c.lineTo(x + z, yy); c.lineTo(x + 2 * z, yy + z); } c.lineTo(W, yy); c.lineTo(0, yy); } else { c.moveTo(0, yy); for (let x = 0; x < W; x += 2 * z) { c.lineTo(x + z, yy + z); c.lineTo(x + 2 * z, yy); } c.lineTo(W, yy - 1); c.lineTo(0, yy - 1); } c.closePath(); c.fill(); };
   const wrapTxt = (txt, font, maxW) => { c.font = font; const out = []; let cur = ''; for (const w of String(txt).split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out; };
-  const dash = () => { y += 2 * PXMM; c.save(); c.lineWidth = 2; c.setLineDash([8, 7]); c.beginPath(); c.moveTo(M, y); c.lineTo(W - M, y); c.stroke(); c.restore(); y += 1.6 * PXMM; };
-  const row = (l, r, font, gap) => { c.font = font; c.textAlign = 'left'; const rw = c.measureText(r).width; const ls = wrapTxt(l, font, CW - rw - 14); ls.forEach((t, i) => { y += lh; c.textAlign = 'left'; c.fillText(t, M, y); if (i === 0) { c.textAlign = 'right'; c.fillText(r, W - M, y); } }); if (gap) y += gap; };
-  const lg = await monoLogo(Math.round(32 * PXMM)); if (lg) { c.drawImage(lg, (W - lg.width) / 2, y); y += lg.height + 1.5 * PXMM; }
-  c.textAlign = 'center'; c.font = `500 ${fs}px ${F}`; y += lh; c.fillText(fmtDate(tk.date) + (tk.number ? ' · #' + tk.number : ''), W / 2, y);
+  const dash = () => { y += 2 * PXMM; c.save(); c.lineWidth = 2.4; c.setLineDash([2, 9]); c.lineCap = 'round'; c.beginPath(); c.moveTo(M, y); c.lineTo(W - M, y); c.stroke(); c.restore(); y += 1.8 * PXMM; };
+  const row = (l, r, font) => { c.font = font; const rw = c.measureText(r).width; const lines = wrapTxt(l, font, CW - rw - 14); lines.forEach((t, i) => { y += lh; c.textAlign = 'left'; c.fillText(t, M, y); if (i === 0) { c.textAlign = 'right'; c.fillText(r, W - M, y); } }); };
+  y = 0; zig(true); y = 3.4 * PXMM;
+  const lg = await monoLogo(Math.round(30 * PXMM)); if (lg) { c.drawImage(lg, (W - lg.width) / 2, y); y += lg.height; }
+  y += 1.2 * PXMM; c.textAlign = 'center'; c.font = `600 ${fs * 0.95}px ${F}`; ls(`${0.9 * PXMM}px`); y += lh; c.fillText('TICKET DE COMPRA', W / 2 + 0.45 * PXMM, y); ls('0px');
   dash();
-  for (const l of L) { row(l.name, m(l.q * l.u), `500 ${fs}px ${F}`, 0); const sm = `400 ${fs * .85}px ${F}`; c.font = sm; c.textAlign = 'left'; if (l.q > 1) { y += lh * .9; c.fillText(`${l.q} × ${m(l.u)}`, M, y); } if (l.d > 0) { y += lh * .9; c.fillText('Descuento', M, y); c.textAlign = 'right'; c.fillText('−' + m(l.d), W - M, y); } y += 0.9 * PXMM; }
+  c.font = `500 ${fs * .8}px ${F}`; ls(`${0.2 * PXMM}px`); y += lh * .95; c.textAlign = 'left'; c.fillText('FECHA', M, y); c.textAlign = 'right'; c.fillText('FOLIO', W - M, y); ls('0px');
+  c.font = `600 ${fs}px ${F}`; y += lh; c.textAlign = 'left'; c.fillText(fmtDate(tk.date), M, y); c.textAlign = 'right'; c.fillText('#' + (tk.number || ''), W - M, y);
+  if ((tk.client || '').trim()) { y += lh * .9; c.font = `500 ${fs * .8}px ${F}`; ls(`${0.2 * PXMM}px`); c.textAlign = 'left'; c.fillText('CLIENTA', M, y); ls('0px'); const nm = tk.client.trim(); let f = 4.6 * PXMM; c.font = `${f}px ${HAND_FONT}`; while (c.measureText(nm).width > CW && f > 2.6 * PXMM) { f -= 0.2 * PXMM; c.font = `${f}px ${HAND_FONT}`; } y += f * 1.05; c.lineWidth = 0.9; c.strokeStyle = '#000'; c.fillText(nm, M, y); c.strokeText(nm, M, y); }
+  dash();
+  c.font = `600 ${fs * .75}px ${F}`; ls(`${0.3 * PXMM}px`); y += lh * .9; c.textAlign = 'left'; c.fillText('ARTÍCULO', M, y); c.textAlign = 'right'; c.fillText('IMPORTE', W - M, y); ls('0px'); y += 0.6 * PXMM;
+  for (const l of L) {
+    row(l.name, m(l.q * l.u), `600 ${fs}px ${F}`);
+    c.font = `400 ${fs * .82}px ${F}`; c.textAlign = 'left';
+    const meta = [l.meta, l.q > 1 ? `${l.q} × ${m(l.u)}` : ''].filter(Boolean).join('  ·  '); if (meta) { y += lh * .9; c.fillText(meta, M, y); }
+    if (l.d > 0) { y += lh * .9; c.fillText('Descuento', M, y); c.textAlign = 'right'; c.fillText('−' + m(l.d), W - M, y); }
+    y += 1.1 * PXMM;
+  }
   dash();
   if (disc > 0 || fee > 0 || tk.shipMode === 'free') {
-    row('Subtotal', m(sub), `400 ${fs}px ${F}`, 0);
-    if (disc > 0) row('Descuento' + (tk.pct ? ' (' + tk.pct + '%)' : ''), '−' + m(disc), `700 ${fs}px ${F}`, 0);
-    if (fee > 0) row('Envío', m(fee), `400 ${fs}px ${F}`, 0); else if (tk.shipMode === 'free') row('Envío', 'GRATIS', `400 ${fs}px ${F}`, 0);
+    row('Subtotal', m(sub), `400 ${fs}px ${F}`);
+    if (disc > 0) row('Descuento' + (tk.pct ? ' (' + tk.pct + '%)' : ''), '−' + m(disc), `700 ${fs}px ${F}`);
+    if (fee > 0) row('Envío', m(fee), `400 ${fs}px ${F}`); else if (tk.shipMode === 'free') row('Envío', 'GRATIS', `600 ${fs}px ${F}`);
     dash();
   }
-  y += 0.3 * PXMM; row('TOTAL', m(total), `700 ${fs * 1.35}px ${F}`, 0.4 * PXMM);
-  if (disc > 0) { c.font = `600 ${fs}px ${F}`; c.textAlign = 'center'; y += lh * 1.1; c.fillText('¡Ahorraste ' + m(disc) + '!', W / 2, y); }
+  y += 0.4 * PXMM; row('TOTAL A PAGAR', m(total), `700 ${fs * 1.2}px ${F}`);
+  if (disc > 0) { c.font = `600 ${fs}px ${F}`; c.textAlign = 'center'; y += lh * 1.15; c.fillText('¡Ahorraste ' + m(disc) + '!', W / 2, y); }
   dash();
-  c.textAlign = 'center'; c.font = `600 ${fs * 1.1}px ${F}`; y += lh * 1.1; c.fillText('¡Gracias por tu compra!', W / 2, y);
-  c.font = `500 ${fs}px ${F}`; y += lh; c.fillText('@kutelle', W / 2, y);
-  y += 5 * PXMM;
+  c.textAlign = 'center'; c.font = `600 ${fs * .92}px ${F}`; ls(`${0.25 * PXMM}px`); y += lh * 1.05; c.fillText('¡GRACIAS POR TU COMPRA!', W / 2 + 0.12 * PXMM, y); ls('0px');
+  c.font = `400 ${fs * .9}px ${F}`; y += lh; c.fillText('Esperamos verte pronto ♡', W / 2, y);
+  c.font = `600 ${fs}px ${F}`; y += lh * 1.05; c.fillText('@kutelle', W / 2, y);
+  // código de barras decorativo
+  y += 1.8 * PXMM; let seed = 0; for (const ch of String(tk.number || '7')) seed = (seed * 31 + ch.charCodeAt(0)) % 9973; seed = seed || 7;
+  let bx = W / 2 - 15 * PXMM; const bh = 7 * PXMM; while (bx < W / 2 + 15 * PXMM) { seed = (seed * 9301 + 49297) % 233280; const w = Math.max(3, Math.round((0.25 + seed / 233280 * 0.55) * PXMM)); c.fillRect(bx, y, w, bh); bx += w + Math.round(0.3 * PXMM) + (seed % 3); }
+  y += bh + 3.2 * PXMM; zig(false); y += 1.4 * PXMM;
   const out = document.createElement('canvas'); out.width = W; out.height = Math.ceil(y); out.getContext('2d').drawImage(big, 0, 0, W, out.height, 0, 0, W, out.height);
   return out;
 }
