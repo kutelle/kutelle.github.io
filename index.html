@@ -35,8 +35,9 @@ h1{font-family:var(--serif);font-weight:400;font-size:clamp(3.4rem,16vw,6.8rem);
 h1 em{font-style:italic}
 .logo{display:block;width:min(78%,420px);aspect-ratio:1/var(--logoR);margin:0;background:currentColor;-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat;font-size:0;color:var(--ink)}
 .updated{margin:14px 0 0;color:var(--muted);font-size:.95rem;letter-spacing:.01em}
-.unique{display:flex;align-items:center;gap:10px;margin:14px 0 0;padding:10px 14px;max-width:420px;border-radius:14px;background:rgba(255,255,255,.65);border:1px solid rgba(87,16,12,.18);color:var(--ink);font-size:.95rem;line-height:1.35}
-.unique svg{flex:none;width:20px;height:20px;color:var(--mauve)}
+.unique{display:flex;align-items:center;gap:14px;margin:18px 0 0;padding:16px 18px;max-width:460px;border-radius:16px;background:var(--mauve);border:1px solid #E2BF7F;color:#F6EBDD;font-family:var(--serif);font-size:clamp(1.15rem,4.8vw,1.4rem);font-weight:600;line-height:1.25;box-shadow:0 8px 22px rgba(87,16,12,.30)}
+.unique svg{flex:none;width:30px;height:30px;color:#E2BF7F;fill:#E2BF7F}
+.unique b{color:#E2BF7F;font-weight:700;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px}
 .nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);margin:0 -18px;padding:10px 18px;border-bottom:1px solid var(--line)}
 .rule{width:56px;height:2px;background:var(--mauve);margin:16px 0 0}
 .nav div{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;max-width:1100px;margin:0 auto}
@@ -193,12 +194,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const money = n => { n = Number(n || 0); const d = Math.round(n * 100) % 100 ? 2 : 0; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: 2 }); };
 const HANGER = '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7a2 2 0 1 1 2-2"/><path d="M12 7v1.5L3 15h18l-9-6.5"/></svg>';
 const sizeText = p => [p.size, p.fit ? (p.size ? '(abarca ' + p.fit + ')' : 'Abarca ' + p.fit) : ''].filter(Boolean).join(' ');
-const availText = q => q <= 0 ? 'Agotado' : q === 1 ? '1 disponible, última pieza' : q + ' disponibles';
+const availText = q => q <= 0 ? 'Agotado' : q === 1 ? '1 pieza disponible' : q + ' disponibles';
 let S = { name: 'Kutelle', whatsapp: '' }, products = [], allCats = [], current = 'all', loadedOnce = false;
 
 function header(updatedAt) {
   const updated = updatedAt ? new Date(updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b>.</span></p>` + `<button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button>`;
+  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b></span></p>` + `<button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button>`;
   document.title = 'Catálogo ' + (S.name || 'Kutelle');
   $('#foot').innerHTML = `<b class="flogo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</b>` + (S.whatsapp ? 'Arma tu lista y envíanosla por WhatsApp o Instagram.<br>¡Gracias por elegirnos!' : 'Gracias por elegirnos.') + `<a class="ig" href="https://instagram.com/kutelle" target="_blank" rel="noopener">@kutelle</a>`;
 }
