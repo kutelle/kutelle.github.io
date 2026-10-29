@@ -321,9 +321,12 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div class="bar w"><button class="btn primary" id="salPut">Dejar prendas en el salón</button></div>
       <p class="stats num" id="salonStats"></p>
       <div class="rows" id="salonList"></div>
-      <h3>Comisión del salón</h3>
+      <h3>Comisión de la chica del salón</h3>
       <div class="kv num" id="salonComm"></div>
-      <div class="bar w" style="margin-top:10px"><button class="btn primary" id="salPay" type="button">Registrar pago de comisión</button><button class="btn" id="salRate" type="button">Cambiar %</button></div>
+      <div class="bar w" style="margin-top:10px"><button class="btn primary" id="salPay" type="button">Registrar pago de comisión</button></div>
+      <h3>Renta del espacio (tu hermana)</h3>
+      <div class="kv num" id="salonRent"></div>
+      <div class="bar w" style="margin-top:10px"><button class="btn primary" id="salPayRent" type="button">Registrar pago de renta</button><button class="btn" id="salRate" type="button">Cambiar %</button></div>
       <h3 id="salonSalesT">Ventas en el salón</h3>
       <div class="rows" id="salonSales"></div>
     </div>
@@ -774,7 +777,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
 <dialog id="dSalPay" aria-labelledby="salPayTitle">
   <div class="dhead"><h2 id="salPayTitle">Pago de comisión</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
   <form class="dbody" id="salPayForm" autocomplete="off" novalidate>
-    <p class="hint" style="margin-top:0">Se anota en Gastos como “Comisiones”, así tus finanzas ya lo descuentan.</p>
+    <p class="hint" id="salPayHint" style="margin-top:0"></p>
     <div class="row2">
       <div><label class="lbl" for="salPayAmt">Monto</label><input class="field num" id="salPayAmt" type="number" step="0.01" min="0" inputmode="decimal"></div>
       <div><label class="lbl" for="salPayDate">Fecha</label><input class="field" type="date" id="salPayDate"></div>
@@ -1808,7 +1811,7 @@ function updateTotal(kind) {
     const sh = $('#saleShipHint'); sh.className = 'hint';
     sh.textContent = !t.items.length ? '' : mode === 'free' && goods < SHIP_FREE ? `Ojo: la compra es de ${money(goods)} y aún no llega a $${SHIP_FREE} para envío gratis.` : mode !== 'free' && goods >= SHIP_FREE ? `La compra llega a $${SHIP_FREE}: le corresponde envío gratis a domicilio.` : '';
     const u = t.items.reduce((s, it) => s + num(it.qty), 0);
-    { const on = $('#saleSalon').value === '1', rt = salonRate(); $('#saleSalonHint').textContent = on && u ? `Comisión para el salón: ${money(Math.max(0, profit) * rt / 100)} (${rt}% de tu ganancia de ${money(profit)}). No cambia el precio.` : (on ? `La comisión es el ${rt}% de tu ganancia en esta venta.` : ''); }
+    { const on = $('#saleSalon').value === '1', rt = salonRate(), rn = salonRent(), g = Math.max(0, profit); $('#saleSalonHint').textContent = on && u ? `Comisión de la chica del salón: ${money(g * rt / 100)} (${rt}%) y renta del espacio: ${money(g * rn / 100)} (${rn}%), sobre tu ganancia de ${money(profit)}. No cambia el precio.` : (on ? `Se aparta ${rt}% de tu ganancia para la comisión y ${rn}% para la renta del espacio.` : ''); }
     $('#saleSub').textContent = u ? `Total a cobrar, ${u} ${u === 1 ? 'pieza' : 'piezas'}` : ''; $('#saleTotal').textContent = money(tot); saleTotNow = tot; if (typeof updateCash === 'function') updateCash(); if (typeof planSync === 'function') planSync();
     const pctTxt = sub > 0 && disc > 0 ? ` (${Math.round(disc / sub * 1000) / 10}%)` : '';
     $('#saleCalc').innerHTML = u ? [
@@ -1928,7 +1931,7 @@ $('#saleForm').onsubmit = async e => {
   if ($('#salePayState').value === 'credit') { const sum = (t.plan || []).reduce((a, r) => a + num(r.amount), 0); if (Math.abs(sum - saleTotNow) > 0.5) { toast(`La suma de los abonos (${money(sum)}) no coincide con el total (${money(saleTotNow)})`); return; } if ((t.plan || []).some(r => !r.date)) { toast('Falta la fecha de un abono'); return; } }
   $('#saleSave').disabled = true;
   try {
-    const header = { date, number, client: canonClient($('#saleClient').value), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0, salon: $('#saleSalon').value === '1', salonRate: $('#saleSalon').value === '1' ? saleSalonRate(t.editKey) : 0, payState: $('#salePayState').value, dueDate: $('#salePayState').value === 'pending' ? ($('#saleDue').value || addDaysISO(date, 1)) : $('#salePayState').value === 'credit' ? ($('#saleDue').value || '') : '' };
+    const header = { date, number, client: canonClient($('#saleClient').value), channel: $('#saleChannel').value, payment: $('#salePay').value, shipMode: $('#saleShipMode').value, shipFee: $('#saleShipMode').value === 'paid' ? SHIP_FEE : 0, salon: $('#saleSalon').value === '1', salonRate: $('#saleSalon').value === '1' ? saleSalonRate(t.editKey) : 0, salonRent: $('#saleSalon').value === '1' ? saleSalonRent(t.editKey) : 0, payState: $('#salePayState').value, dueDate: $('#salePayState').value === 'pending' ? ($('#saleDue').value || addDaysISO(date, 1)) : $('#salePayState').value === 'credit' ? ($('#saleDue').value || '') : '' };
     const abonoNow = (!t.editKey && header.payState === 'credit') ? num($('#saleAbonoNow').value) : 0;
     if (abonoNow > saleTotNow + 0.005) { toast('El abono no puede ser mayor al total'); $('#saleSave').disabled = false; return; }
     header.phone = $('#salePhone').value.trim();
@@ -1952,7 +1955,9 @@ $('#saleForm').onsubmit = async e => {
 
 /* ===== Salón: prendas en exhibición y comisión ===== */
 const saleSalonRate = key => { const tk = key ? D.tickets.find(x => x.number === key) : null; const r0 = tk && tk.rows[0]; return r0 && r0.salon && r0.salonRate != null ? num(r0.salonRate) : salonRate(); };
+const saleSalonRent = key => { const tk = key ? D.tickets.find(x => x.number === key) : null; const r0 = tk && tk.rows[0]; return r0 && r0.salon && r0.salonRent != null ? num(r0.salonRent) : salonRent(); };
 const salonRate = () => { const x = parseFloat((S.config.salon || {}).rate); return isFinite(x) && x >= 0 ? x : 10; };
+const salonRent = () => { const x = parseFloat((S.config.salon || {}).rent); return isFinite(x) && x >= 0 ? x : 5; };
 const salonLogs = () => Object.entries(S.config).filter(([k, v]) => k.startsWith('sal_') && v && v.kind === 'salon').map(([id, v]) => ({ id, ...v }));
 function salonStock() {
   const m = {};
@@ -1963,31 +1968,34 @@ function salonStock() {
 function salonCommission() {
   const C = cuentas(); const fr = {};
   C.all.ar.forEach(x => { fr[String(x.ref)] = x.total > 0 ? Math.max(0, Math.min(1, x.paid / x.total)) : 1; });
-  let sales = 0, profit = 0, earned = 0, pending = 0;
+  let sales = 0, profit = 0, earned = 0, pending = 0, rEarned = 0, rPending = 0;
   const list = D.tickets.filter(t => t.rows[0] && t.rows[0].salon).map(t => {
     const f = Object.prototype.hasOwnProperty.call(fr, String(t.number)) ? fr[String(t.number)] : 1;
-    const com = Math.max(0, t.profit) * num(t.rows[0].salonRate) / 100;
-    sales += t.total; profit += t.profit; earned += com * f; pending += com * (1 - f);
-    return { t, com, f };
+    const com = Math.max(0, t.profit) * num(t.rows[0].salonRate) / 100, rent = Math.max(0, t.profit) * (t.rows[0].salonRent != null ? num(t.rows[0].salonRent) : salonRent()) / 100;
+    sales += t.total; profit += t.profit; earned += com * f; pending += com * (1 - f); rEarned += rent * f; rPending += rent * (1 - f);
+    return { t, com, rent, f };
   });
-  const paid = Object.values(S.expenses).filter(g => g && g.salon).reduce((s, g) => s + num(g.amount), 0);
-  return { list, sales, profit, earned, pending, paid, due: earned - paid };
+  const ex = Object.values(S.expenses);
+  const paid = ex.filter(g => g && g.salon).reduce((s, g) => s + num(g.amount), 0), rPaid = ex.filter(g => g && g.salonRent).reduce((s, g) => s + num(g.amount), 0);
+  return { list, sales, profit, earned, pending, paid, due: earned - paid, rEarned, rPending, rPaid, rDue: rEarned - rPaid };
 }
 function renderSalon() {
   const here = salonStock(), units = here.reduce((s, x) => s + x.qty, 0), c = salonCommission();
-  $('#salonStats').textContent = `${units} ${units === 1 ? 'pieza' : 'piezas'} en el salón. Comisión: ${salonRate()}% de tu ganancia por cada venta ahí.`;
+  $('#salonStats').textContent = `${units} ${units === 1 ? 'pieza' : 'piezas'} en el salón. Por cada venta ahí se aparta ${salonRate()}% de tu ganancia para la chica del salón y ${salonRent()}% para la renta del espacio.`;
   $('#salonList').innerHTML = here.length ? here.map(x => `<button class="row" type="button" data-sku="${esc(x.sku)}">
     <div class="l"><b>${esc(titleOf(x.p))}</b><small>${esc(subOf(x.p))}</small></div>
     <div class="r"><b class="num">× ${x.qty}</b><small>${money(x.p.price)}</small></div></button>`).join('')
     : `<div class="empty"><b>No hay prendas en el salón</b>Toca “Dejar prendas en el salón” cuando lleves ropa. Toca una prenda de esta lista para recogerla.</div>`;
-  const rows = [[`Ventas en el salón (${c.list.length})`, money(c.sales)], ['Tu ganancia en esas ventas', money(c.profit)], ['Comisión generada (ya cobrada)', money(c.earned)], ['Ya pagada', money(c.paid)]];
-  $('#salonComm').innerHTML = rows.map(([l, v]) => `<div><span>${l}</span><span>${v}</span></div>`).join('') +
-    `<div class="strong"><span>Por pagar</span><span>${money(Math.max(0, c.due))}</span></div>` +
-    (c.pending > 0.005 ? `<div><span>Comisión de ventas sin cobrar</span><span>${money(c.pending)}</span></div>` : '') + (c.due < -0.005 ? `<div><span>Pagado de más</span><span>${money(-c.due)}</span></div>` : '');
-  $('#salPay').disabled = c.due <= 0.005;
-  $('#salonSales').innerHTML = c.list.length ? c.list.map(({ t, com, f }) => `<button class="row" type="button" data-n="${esc(t.number)}">
+  const kv = rows => rows.map(([l, v, cls]) => `<div${cls ? ` class="${cls}"` : ''}><span>${l}</span><span>${v}</span></div>`).join('');
+  $('#salonComm').innerHTML = kv([[`Ventas en el salón (${c.list.length})`, money(c.sales)], ['Tu ganancia en esas ventas', money(c.profit)],
+    ['Comisión de la chica (' + salonRate() + '%), ya cobrada', money(c.earned)], ['Ya pagada', money(c.paid)], ['Comisión por pagar', money(Math.max(0, c.due)), 'strong'],
+    ...(c.pending > 0.005 ? [['Comisión de ventas sin cobrar', money(c.pending)]] : []), ...(c.due < -0.005 ? [['Comisión pagada de más', money(-c.due)]] : [])]);
+  $('#salonRent').innerHTML = kv([['Renta del espacio (' + salonRent() + '%), ya cobrada', money(c.rEarned)], ['Ya pagada', money(c.rPaid)], ['Renta por pagar', money(Math.max(0, c.rDue)), 'strong'],
+    ...(c.rPending > 0.005 ? [['Renta de ventas sin cobrar', money(c.rPending)]] : []), ...(c.rDue < -0.005 ? [['Renta pagada de más', money(-c.rDue)]] : [])]);
+  $('#salPay').disabled = c.due <= 0.005; $('#salPayRent').disabled = c.rDue <= 0.005;
+  $('#salonSales').innerHTML = c.list.length ? c.list.map(({ t, com, rent, f }) => `<button class="row" type="button" data-n="${esc(t.number)}">
     <div class="l"><b>${esc(t.client || 'Venta ' + t.number)}</b><small>N° ${esc(t.number)}, ${fmtDate(t.date)}${f < 1 ? ' · <b class="low">Por cobrar</b>' : ''}</small></div>
-    <div class="r"><b class="num">${money(com)}</b><small>comisión de ${money(t.total)}</small></div></button>`).join('') : `<div class="empty">Aún no registras ventas hechas en el salón. En una venta nueva elige “En el salón”.</div>`;
+    <div class="r"><b class="num">${money(com + rent)}</b><small>comisión ${money(com)} + renta ${money(rent)}</small></div></button>`).join('') : `<div class="empty">Aún no registras ventas hechas en el salón. En una venta nueva elige “En el salón”.</div>`;
 }
 $('#salonSales').addEventListener('click', e => { const b = e.target.closest('.row'); if (b) openSale(b.dataset.n); });
 let salMode = 'put', salSkuFixed = '';
@@ -2025,17 +2033,28 @@ $('#salForm').onsubmit = async e => {
   } catch { toast('No se pudo guardar'); } finally { $('#salSave').disabled = false; }
 };
 $('#salRate').onclick = async () => {
-  const v = prompt('¿Qué porcentaje de tu ganancia es la comisión del salón?', String(salonRate())); if (v === null) return;
-  const x = parseFloat(String(v).replace(',', '.')); if (!isFinite(x) || x < 0 || x > 100) { toast('Escribe un número entre 0 y 100'); return; }
-  try { const d = { rate: x }; await store.set('config', 'salon', d); S.config.salon = d; renderAll(); toast('Comisión: ' + x + '%. Aplica a las ventas nuevas'); } catch { toast('No se pudo guardar'); }
+  const ask = (msg, cur) => { const v = prompt(msg, String(cur)); if (v === null) return null; const x = parseFloat(String(v).replace(',', '.')); if (!isFinite(x) || x < 0 || x > 100) { toast('Escribe un número entre 0 y 100'); return null; } return x; };
+  const a = ask('¿Qué % de tu ganancia es la comisión de la chica del salón?', salonRate()); if (a === null) return;
+  const b = ask('¿Qué % de tu ganancia es la renta del espacio (tu hermana)?', salonRent()); if (b === null) return;
+  try { const d = { ...(S.config.salon || {}), rate: a, rent: b }; await store.set('config', 'salon', d); S.config.salon = d; renderAll(); toast(`Comisión ${a}% y renta ${b}%. Aplica a las ventas nuevas`); } catch { toast('No se pudo guardar'); }
 };
-$('#salPay').onclick = () => { const c = salonCommission(); if (c.due <= 0.005) return; $('#salPayAmt').value = Math.round(c.due * 100) / 100; $('#salPayDate').value = today(); $('#salPayNote').value = ''; $('#salPaySave').disabled = false; $('#dSalPay').showModal(); };
+let salPayKind = 'com';
+function openSalPay(kind) {
+  const c = salonCommission(), due = kind === 'com' ? c.due : c.rDue; if (due <= 0.005) return;
+  salPayKind = kind;
+  $('#salPayTitle').textContent = kind === 'com' ? 'Pago de comisión (chica del salón)' : 'Pago de renta (tu hermana)';
+  $('#salPayHint').textContent = kind === 'com' ? 'Se anota en Gastos como “Comisiones”, así tus finanzas ya lo descuentan.' : 'Se anota en Gastos como “Renta del salón”, así tus finanzas ya lo descuentan.';
+  $('#salPayAmt').value = Math.round(due * 100) / 100; $('#salPayDate').value = today(); $('#salPayNote').value = ''; $('#salPaySave').disabled = false; $('#dSalPay').showModal();
+}
+$('#salPay').onclick = () => openSalPay('com');
+$('#salPayRent').onclick = () => openSalPay('rent');
 $('#salPayForm').onsubmit = async e => {
   e.preventDefault();
   const amt = num($('#salPayAmt').value); if (!(amt > 0)) { toast('Escribe el monto'); return; }
+  const com = salPayKind === 'com';
   $('#salPaySave').disabled = true;
   try {
-    await store.set('expenses', 'g_' + store.newId(), { date: $('#salPayDate').value || today(), concept: 'Comisión del salón', category: 'Comisiones', amount: amt, notes: $('#salPayNote').value.trim(), receipt: null, salon: true, createdAt: Date.now() });
+    await store.set('expenses', 'g_' + store.newId(), { date: $('#salPayDate').value || today(), concept: com ? 'Comisión del salón' : 'Renta del espacio (salón)', category: com ? 'Comisiones' : 'Renta del salón', amount: amt, notes: $('#salPayNote').value.trim(), receipt: null, ...(com ? { salon: true } : { salonRent: true }), createdAt: Date.now() });
     $('#dSalPay').close(); toast('Pago anotado en Gastos'); renderAll();
   } catch { toast('No se pudo guardar'); } finally { $('#salPaySave').disabled = false; }
 };
@@ -2764,7 +2783,7 @@ $('#expForm').onsubmit = async e => {
   try {
     const receipt = expFile ? await prepareImage(expFile, 1400, 'tickets') : expExisting;
     const data = { date: $('#expDate').value || today(), concept, category: $('#expCat').value, amount: num($('#expAmount').value), notes: $('#expNotes').value.trim(), receipt: receipt || null,
-      createdAt: expEdit ? (S.expenses[expEdit]?.createdAt || Date.now()) : Date.now(), ...(expEdit && S.expenses[expEdit]?.salon ? { salon: true } : {}) };
+      createdAt: expEdit ? (S.expenses[expEdit]?.createdAt || Date.now()) : Date.now(), ...(expEdit && S.expenses[expEdit]?.salon ? { salon: true } : {}), ...(expEdit && S.expenses[expEdit]?.salonRent ? { salonRent: true } : {}) };
     lsSet('lastExpCat', data.category);
     await store.set('expenses', expEdit || 'g_' + store.newId(), data); $('#dExp').close(); toast('Gasto guardado');
   } catch { toast('No se pudo guardar el gasto'); }
