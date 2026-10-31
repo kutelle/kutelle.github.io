@@ -913,6 +913,10 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <div class="actions" style="margin-top:6px"><button type="button" class="btn primary" id="prLabelPdf">Guardar PDF</button><button type="button" class="btn" id="prLabelGo">Imprimir</button></div>
     <label class="lbl">Ticket para la bolsa (papel continuo 57 mm)</label>
     <div class="actions" style="margin-top:6px"><button type="button" class="btn primary" id="prTicketPdf">Guardar PDF</button><button type="button" class="btn" id="prTicketGo">Imprimir</button></div>
+    <label class="lbl">Ticket para impresora térmica de 57 mm (recomendado)</label>
+    <div class="actions" style="margin-top:6px"><button type="button" class="btn primary" id="prThermalShare">Compartir imagen</button><button type="button" class="btn" id="prThermalView">Ver</button></div>
+    <img id="prThermalImg" alt="Vista previa del ticket térmico" hidden style="display:block;width:100%;max-width:384px;margin:10px auto 0;border:1px solid var(--line);background:#fff;image-rendering:pixelated">
+    <p class="hint">Es una imagen de 384 píxeles de ancho, que es el ancho real de impresión de tu impresora, en negro puro y con letra más grande. Compártela a la app de tu impresora y mándala a imprimir sin cambiarle el tamaño.</p>
     <select id="prLabelSize" hidden><option value="40x30">40x30</option></select><select id="prTicketSize" hidden><option value="57">57</option></select>
     <p class="hint">El PDF queda del tamaño exacto del papel. En el celular se abre el menú para compartirlo directo a tu app de la impresora (Phomemo u otra). En computadora se descarga.</p>
   </div>
@@ -2421,6 +2425,62 @@ async function ticketCanvas(tk) {
   const out = document.createElement('canvas'); out.width = W; out.height = Math.ceil(y); out.getContext('2d').drawImage(big, 0, 0, W, out.height, 0, 0, W, out.height);
   return out;
 }
+/* Ticket para impresora térmica de 58/57 mm: imagen de 384 px (1 px = 1 punto de la impresora), blanco y negro puro */
+const THERMAL_W = 384;
+async function thermalCanvas(tk) {
+  await ensureScriptFont();
+  const W = THERMAL_W, M = 8, CW = W - 2 * M; const big = document.createElement('canvas'); big.width = W; big.height = 7000; const c = big.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, W, big.height); c.fillStyle = '#000'; c.strokeStyle = '#000'; c.textBaseline = 'alphabetic';
+  const F = 'Jost, "Helvetica Neue", Arial, sans-serif';
+  const ls = v => { try { c.letterSpacing = v; } catch {} };
+  const wrapTxt = (txt, font, maxW) => { c.font = font; const out = []; let cur = ''; for (const w of String(txt).split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out; };
+  const dash = () => { y += 12; c.save(); c.lineWidth = 2; c.setLineDash([7, 5]); c.beginPath(); c.moveTo(M, y); c.lineTo(W - M, y); c.stroke(); c.restore(); y += 10; };
+  const row = (l, r, font, lh) => { lh = lh || 31; c.font = font; const rw = c.measureText(r).width; wrapTxt(l, font, CW - rw - 10).forEach((t, i) => { y += lh; c.textAlign = 'left'; c.fillText(t, M, y); if (i === 0) { c.textAlign = 'right'; c.fillText(r, W - M, y); } }); };
+  const L = tk.rows.map(r => { const p = D.bySku[r.sku]; return { name: titleOf(p), meta: [r.sku || '', sizeText(p) ? 'Talla ' + sizeText(p) : ''].filter(Boolean).join(' · '), q: num(r.qty), u: num(r.unitPrice), d: num(r.discount) }; });
+  const sub = L.reduce((a, l) => a + l.q * l.u, 0), disc = L.reduce((a, l) => a + l.d, 0), fee = tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0, total = sub - disc + fee;
+  let y = 14;
+  const lg = await monoLogo(250); if (lg) { c.drawImage(lg, (W - lg.width) / 2, y); y += lg.height; }
+  c.textAlign = 'center'; c.font = `700 23px ${F}`; ls('4px'); y += 36; c.fillText('TICKET DE COMPRA', W / 2 + 2, y); ls('0px');
+  dash();
+  c.font = `700 20px ${F}`; ls('1px'); y += 28; c.textAlign = 'left'; c.fillText('FECHA', M, y); c.textAlign = 'right'; c.fillText('FOLIO', W - M, y); ls('0px');
+  c.font = `700 26px ${F}`; y += 32; c.textAlign = 'left'; c.fillText(fmtDate(tk.date), M, y); c.textAlign = 'right'; c.fillText('#' + (tk.number || ''), W - M, y);
+  if ((tk.client || '').trim()) { c.font = `700 20px ${F}`; ls('1px'); y += 36; c.textAlign = 'left'; c.fillText('CLIENTA', M, y); ls('0px'); let f = 30; const nm = tk.client.trim(); c.font = `700 ${f}px ${F}`; while (c.measureText(nm).width > CW && f > 20) { f -= 1; c.font = `700 ${f}px ${F}`; } y += 34; c.fillText(nm, M, y); }
+  dash();
+  c.font = `700 20px ${F}`; ls('1px'); y += 28; c.textAlign = 'left'; c.fillText('ARTÍCULO', M, y); c.textAlign = 'right'; c.fillText('IMPORTE', W - M, y); ls('0px'); y += 4;
+  for (const l of L) {
+    row(l.name, mny(l.q * l.u), `700 25px ${F}`, 30);
+    c.font = `600 22px ${F}`; c.textAlign = 'left';
+    const meta = [l.meta, l.q > 1 ? `${l.q} × ${mny(l.u)}` : ''].filter(Boolean).join('  ·  '); if (meta) { y += 27; c.fillText(meta, M, y); }
+    if (l.d > 0) { y += 27; c.fillText('Descuento', M, y); c.textAlign = 'right'; c.fillText('−' + mny(l.d), W - M, y); }
+    y += 8;
+  }
+  dash();
+  if (disc > 0 || fee > 0 || tk.shipMode === 'free') {
+    row('Subtotal', mny(sub), `600 25px ${F}`);
+    if (disc > 0) row('Descuento' + (tk.pct ? ' (' + tk.pct + '%)' : ''), '−' + mny(disc), `700 25px ${F}`);
+    if (fee > 0) row('Envío', mny(fee), `600 25px ${F}`); else if (tk.shipMode === 'free') row('Envío', 'GRATIS', `700 25px ${F}`);
+    dash();
+  }
+  y += 4; row('TOTAL', mny(total), `800 36px ${F}`, 40);
+  if (disc > 0) { c.font = `700 24px ${F}`; c.textAlign = 'center'; y += 34; c.fillText('¡Ahorraste ' + mny(disc) + '!', W / 2, y); }
+  if (tk.plan && tk.plan.length) {
+    dash(); c.font = `700 20px ${F}`; ls('1px'); c.textAlign = 'left'; y += 28; c.fillText('PLAN DE ABONOS', M, y); ls('0px');
+    planRows(tk.plan, tk.paid).forEach((r, i) => { row(`Abono ${i + 1} · ${fmtShort(r.date)}`, mny(r.amount) + (r.covered ? ' ✓' : ''), `600 23px ${F}`, 30); });
+    y += 6; row('Abonado', num(tk.paid) > 0 ? mny(num(tk.paid)) : 'Sin abonos', `600 24px ${F}`, 31);
+    row('Saldo pendiente', mny(Math.max(0, total - num(tk.paid))), `800 28px ${F}`, 34);
+  }
+  dash();
+  c.textAlign = 'center'; c.font = `700 24px ${F}`; y += 34; c.fillText('¡GRACIAS POR TU COMPRA!', W / 2, y);
+  c.font = `600 22px ${F}`; y += 30; c.fillText('Esperamos verte pronto', W / 2, y);
+  c.font = `700 26px ${F}`; y += 34; c.fillText('@kutelle', W / 2, y);
+  y += 40;
+  const out = document.createElement('canvas'); out.width = W; out.height = Math.ceil(y); const g = out.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, out.height); g.drawImage(big, 0, 0, W, out.height, 0, 0, W, out.height);
+  // blanco y negro puro: la térmica no imprime grises
+  const im = g.getImageData(0, 0, W, out.height), d = im.data;
+  for (let i = 0; i < d.length; i += 4) { const v = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) < 185 ? 0 : 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  g.putImageData(im, 0, 0);
+  return out;
+}
 async function makePdf(cv, wmm, hmm) {
   const W = cv.width, H = cv.height, pw = (wmm * 72 / 25.4).toFixed(2), ph = (hmm * 72 / 25.4).toFixed(2);
   const px = cv.getContext('2d').getImageData(0, 0, W, H).data; const gray = new Uint8Array(W * H); for (let i = 0, j = 0; i < px.length; i += 4, j++) gray[j] = px[i];
@@ -2448,6 +2508,17 @@ async function deliverFile(f) {
 }
 const fileSafe = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').slice(0, 30) || 'clienta';
 $('#prLabelPdf').onclick = async () => { if (!tkLast) return; const b = $('#prLabelPdf'); b.disabled = true; try { const cv = await labelCanvas(tkLast); await savePdfFrom(cv, 40, 30, `etiqueta_${fileSafe(tkLast.client)}.pdf`); } finally { b.disabled = false; } };
+async function thermalFile() { const cv = await thermalCanvas(tkLast); const blob = await new Promise(r => cv.toBlob(r, 'image/png')); return { cv, blob, file: new File([blob], `ticket-termico_${fileSafe(tkLast.number)}.png`, { type: 'image/png' }) }; }
+function thermalPreview(blob) { const im = $('#prThermalImg'); if (im.dataset.u) URL.revokeObjectURL(im.dataset.u); im.dataset.u = URL.createObjectURL(blob); im.src = im.dataset.u; im.hidden = false; }
+$('#prThermalView').onclick = async () => { if (!tkLast) return; const b = $('#prThermalView'); b.disabled = true; try { const t = await thermalFile(); thermalPreview(t.blob); } catch (e) { console.error(e); toast('No se pudo crear el ticket'); } finally { b.disabled = false; } };
+$('#prThermalShare').onclick = async () => {
+  if (!tkLast) return; const b = $('#prThermalShare'); b.disabled = true;
+  try {
+    const t = await thermalFile(); thermalPreview(t.blob);
+    try { if (navigator.canShare && navigator.canShare({ files: [t.file] })) { await navigator.share({ files: [t.file], title: t.file.name }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    const u = URL.createObjectURL(t.file); const a = document.createElement('a'); a.href = u; a.download = t.file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000); toast('Imagen guardada: ábrela desde la app de tu impresora');
+  } catch (e) { console.error(e); toast('No se pudo crear el ticket'); } finally { b.disabled = false; }
+};
 $('#prTicketPdf').onclick = async () => { if (!tkLast) return; const b = $('#prTicketPdf'); b.disabled = true; try { const cv = await ticketCanvas(tkLast); await savePdfFrom(cv, 57, cv.height / PXMM, `ticket_${fileSafe(tkLast.number)}.pdf`); } finally { b.disabled = false; } };
 
 /* ===== Plan de abonos (4 semanas) ===== */
@@ -2482,11 +2553,11 @@ $('#saleDate').addEventListener('change', () => { if ($('#salePayState').value =
 const mny = n => { n = Math.round(num(n) * 100) / 100; return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
 function paidFor(number) { return payDocs().filter(p => p.kind === 'ar' && String(p.ref) === String(number)).reduce((s, p) => s + num(p.amount), 0); }
 function waOpen(phone, text) { const n = waNumber(phone); if (n.length < 11) { toast('Falta el WhatsApp de la clienta (10 dígitos)'); return false; } window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(text), '_blank'); return true; }
-function waTicketText(tk) {
+function waTicketText(tk, withImg = true) {
   const first = (tk.client || '').trim().split(' ')[0]; const rows = (tk.rows || []); const sub = rows.reduce((a, r) => a + num(r.qty) * num(r.unitPrice) - num(r.discount), 0); const total = sub + (tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0);
   let t = `Hola${first ? ' ' + first : ''} ♡ Gracias por tu compra en ${storeName()}.\nTotal: ${mny(total)}`;
   if (tk.plan && tk.plan.length) { const pr = planRows(tk.plan, tk.paid); t += '\n\nTu plan de abonos:\n' + pr.map((r, i) => `• Abono ${i + 1}, ${fmtShort(r.date)}: ${mny(r.amount)}${r.covered ? ' ✓' : ''}`).join('\n'); t += `\n\n${num(tk.paid) > 0 ? 'Abonado: ' + mny(num(tk.paid)) : 'Aún no has dado abonos'}\nSaldo pendiente: ${mny(Math.max(0, total - num(tk.paid)))}`; }
-  return t + '\n\nTe comparto tu ticket 🧾';
+  return withImg ? t + '\n\nTe comparto tu ticket 🧾' : t;
 }
 function waReminderText(x) {
   const tk = D.tickets.find(t => t.number === String(x.ref)); const first = ((tk && tk.client) || '').trim().split(' ')[0]; const plan = tk && tk.rows[0] && tk.rows[0].plan;
@@ -2494,7 +2565,16 @@ function waReminderText(x) {
   if (plan && plan.length) { const pend = planRows(plan, x.paid).map((r, i) => ({ ...r, n: i + 1 })).filter(r => !r.covered); t += pend.map(r => `• Abono ${r.n}, ${fmtShort(r.date)}: ${mny(r.left)}`).join('\n'); } 
   t += `\n\nSaldo total: ${mny(x.bal)}\n¡Gracias!`; return t;
 }
-$('#tkWa').onclick = () => { if (!tkLast) return; if (!(tkLast.phone || '').trim()) { toast('Esta venta no tiene WhatsApp. Agrégalo al editar la venta'); return; } waOpen(tkLast.phone, waTicketText(tkLast)); };
+$('#tkWa').onclick = async () => {
+  if (!tkLast) return;
+  // Con el menú de compartir sí se adjunta la imagen del ticket junto con el mensaje (wa.me solo manda texto).
+  if (tkBlob) {
+    const f = new File([tkBlob], tkName, { type: 'image/png' });
+    try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: waTicketText(tkLast, true) }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  if (!(tkLast.phone || '').trim()) { toast('Esta venta no tiene WhatsApp. Agrégalo al editar la venta'); return; }
+  if (waOpen(tkLast.phone, waTicketText(tkLast, false))) toast('WhatsApp no deja adjuntar la imagen desde aquí. Toca “Guardar imagen” y mándala en el chat');
+};
 $('#payWa').onclick = () => { if (!payCtx || payCtx.kind !== 'ar') return; const x = cuentas().all.ar.find(a => String(a.ref) === String(payCtx.ref)); if (!x) return; if (!x.phone) { toast('Esta venta no tiene WhatsApp. Agrégalo al editar la venta'); return; } waOpen(x.phone, waReminderText(x)); };
 $('#saleDel').onclick = async () => {
   const k = T.sale.editKey; if (!k || !confirm('¿Eliminar esta venta? Las piezas regresan al inventario.')) return;
