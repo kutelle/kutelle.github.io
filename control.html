@@ -318,7 +318,8 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div class="rows" id="retList"></div>
     </div>
     <div id="v-salon" hidden>
-      <div class="bar w"><button class="btn primary" id="salPut">Dejar prendas en el salón</button></div>
+      <div class="bar w"><button class="btn primary" id="salScanPut">Escanear para dejar</button><button class="btn" id="salScanBack">Escanear para recoger</button></div>
+      <div class="bar w" style="margin-top:-2px"><button class="btn" id="salPut">Elegir prendas a mano</button></div>
       <p class="stats num" id="salonStats"></p>
       <div class="rows" id="salonList"></div>
       <h3>Comisión de la chica del salón</h3>
@@ -2022,6 +2023,26 @@ function openSalon(mode, sku) {
   $('#dSalon').showModal();
 }
 $('#salPut').onclick = () => openSalon('put');
+/* Escanear el código de barras para dejar o recoger prendas (el escáner se queda abierto para escanear varias seguidas) */
+function salonScan(mode) {
+  const put = mode === 'put'; let n = 0;
+  const msg = t => { $('#scanMsg').textContent = t; };
+  openScanner(async code => {
+    const p = byBarcode(code) || D.bySku[String(code).toUpperCase()];
+    if (!p) { msg('Ese código no está en tu catálogo'); return; }
+    const inS = (salonStock().find(x => x.sku === p.sku) || {}).qty || 0;
+    if (put && inS >= p.stock) { msg(`${titleOf(p)}: ${p.stock <= 0 ? 'no tiene piezas disponibles' : 'ya está registrada en el salón'}`); return; }
+    if (!put && inS <= 0) { msg(`${titleOf(p)}: no está registrada en el salón`); return; }
+    try {
+      const id = 'sal_' + store.newId(); const data = { kind: 'salon', sku: p.sku, qty: put ? 1 : -1, date: today(), createdAt: Date.now() };
+      await store.set('config', id, data); S.config[id] = data; n++; renderAll();
+      msg(`✓ ${put ? 'Dejada' : 'Recogida'}: ${titleOf(p)}${p.color ? ', ' + p.color : ''}. Llevas ${n} ${n === 1 ? 'pieza' : 'piezas'}. Escanea la siguiente o cierra.`);
+    } catch { msg('No se pudo guardar. Intenta de nuevo'); }
+  }, false);
+  msg(put ? 'Escanea cada prenda que dejas en el salón' : 'Escanea cada prenda que recoges del salón');
+}
+$('#salScanPut').onclick = () => salonScan('put');
+$('#salScanBack').onclick = () => salonScan('back');
 $('#salonList').addEventListener('click', e => { const b = e.target.closest('.row'); if (b && canWrite) openSalon('back', b.dataset.sku); });
 $('#salForm').onsubmit = async e => {
   e.preventDefault();
