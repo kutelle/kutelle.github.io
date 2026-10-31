@@ -2457,7 +2457,7 @@ async function thermalCanvas(tk) {
   const wrapTxt = (txt, font, maxW) => { c.font = font; const out = []; let cur = ''; for (const w of String(txt).split(' ')) { const t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out; };
   const dash = () => { y += 12; c.save(); c.lineWidth = 2; c.setLineDash([7, 5]); c.beginPath(); c.moveTo(M, y); c.lineTo(W - M, y); c.stroke(); c.restore(); y += 10; };
   const row = (l, r, font, lh) => { lh = lh || 31; c.font = font; const rw = c.measureText(r).width; wrapTxt(l, font, CW - rw - 10).forEach((t, i) => { y += lh; c.textAlign = 'left'; c.fillText(t, M, y); if (i === 0) { c.textAlign = 'right'; c.fillText(r, W - M, y); } }); };
-  const L = tk.rows.map(r => { const p = D.bySku[r.sku]; return { name: titleOf(p), meta: [r.sku || '', sizeText(p) ? 'Talla ' + sizeText(p) : ''].filter(Boolean).join(' · '), q: num(r.qty), u: num(r.unitPrice), d: num(r.discount) }; });
+  const L = tk.rows.map(r => { const p = D.bySku[r.sku]; return { name: titleOf(p), sku: r.sku || '', q: num(r.qty), u: num(r.unitPrice), d: num(r.discount) }; });
   const sub = L.reduce((a, l) => a + l.q * l.u, 0), disc = L.reduce((a, l) => a + l.d, 0), fee = tk.shipMode === 'paid' ? num(tk.shipFee || 40) : 0, total = sub - disc + fee;
   let y = 14;
   const lg = await monoLogo(250); if (lg) { c.drawImage(lg, (W - lg.width) / 2, y); y += lg.height; }
@@ -2468,12 +2468,14 @@ async function thermalCanvas(tk) {
   if ((tk.client || '').trim()) { c.font = `700 20px ${F}`; ls('1px'); y += 36; c.textAlign = 'left'; c.fillText('CLIENTA', M, y); ls('0px'); let f = 30; const nm = tk.client.trim(); c.font = `700 ${f}px ${F}`; while (c.measureText(nm).width > CW && f > 20) { f -= 1; c.font = `700 ${f}px ${F}`; } y += 34; c.fillText(nm, M, y); }
   dash();
   c.font = `700 20px ${F}`; ls('1px'); y += 28; c.textAlign = 'left'; c.fillText('ARTÍCULO', M, y); c.textAlign = 'right'; c.fillText('IMPORTE', W - M, y); ls('0px'); y += 4;
+  c.font = `600 22px ${F}`;
+  const clip = (txt, maxW) => { let x = String(txt || '').trim(); if (c.measureText(x).width <= maxW) return x; while (x.length > 1 && c.measureText(x + '…').width > maxW) x = x.slice(0, -1); const sp = x.lastIndexOf(' '); if (sp > 8) x = x.slice(0, sp); return x.replace(/[\s,.;:·-]+$/, '') + '…'; };
   for (const l of L) {
-    row(l.name, mny(l.q * l.u), `700 25px ${F}`, 30);
-    c.font = `600 22px ${F}`; c.textAlign = 'left';
-    const meta = [l.meta, l.q > 1 ? `${l.q} × ${mny(l.u)}` : ''].filter(Boolean).join('  ·  '); if (meta) { y += 27; c.fillText(meta, M, y); }
-    if (l.d > 0) { y += 27; c.fillText('Descuento', M, y); c.textAlign = 'right'; c.fillText('−' + mny(l.d), W - M, y); }
     y += 8;
+    row(l.sku || l.name, mny(l.q * l.u), `700 26px ${F}`, 32);
+    if (l.sku) { c.font = `600 22px ${F}`; c.textAlign = 'left'; y += 28; c.fillText(clip((l.q > 1 ? l.q + ' × ' : '') + l.name, CW), M, y); }
+    if (l.d > 0) { c.font = `600 22px ${F}`; c.textAlign = 'left'; y += 28; c.fillText('Descuento', M, y); c.textAlign = 'right'; c.fillText('−' + mny(l.d), W - M, y); }
+    y += 12;
   }
   dash();
   if (disc > 0 || fee > 0 || tk.shipMode === 'free') {
