@@ -119,6 +119,24 @@ button.cta:disabled{background:var(--line);color:var(--muted);cursor:default;bor
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:.9rem;z-index:20;pointer-events:none}
 .how{display:inline-flex;align-items:center;gap:8px;margin-top:18px;border:0;background:var(--mauve);color:#fff;border-radius:999px;padding:10px 20px;font-size:.95rem;font-weight:500;cursor:pointer}
 .how svg{width:18px;height:18px}
+.hrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.hrow .how{margin-top:0}
+.polbtn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--mauve);background:rgba(255,255,255,.55);color:var(--mauve);border-radius:999px;padding:9px 20px;font-size:.95rem;font-weight:500;cursor:pointer}
+.polbtn svg{width:18px;height:18px}
+.plink{display:inline-block;margin-top:10px;border:0;background:transparent;color:inherit;font:inherit;font-size:.9rem;text-decoration:underline;cursor:pointer;padding:6px}
+.note .plink{display:inline;margin:0;padding:0;color:var(--mauve);font-weight:600;font-size:inherit}
+.pol{margin-top:14px}
+.pol details{border-top:1px solid var(--line)}
+.pol details:last-child{border-bottom:1px solid var(--line)}
+.pol summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 2px;font-weight:600;font-size:1.02rem;cursor:pointer;list-style:none}
+.pol summary::-webkit-details-marker{display:none}
+.pol summary::after{content:'+';flex:none;font-size:1.4rem;font-weight:400;color:var(--mauve);line-height:1}
+.pol details[open] summary::after{content:'\2013'}
+.pol .pb{padding:0 2px 16px;font-size:.96rem;line-height:1.55}
+.pol .pb p{margin:0 0 10px}
+.pol .pb ul{margin:0 0 10px;padding-left:20px}
+.pol .pb li{margin-bottom:6px}
+.pol .lead{font-weight:600;color:var(--mauve)}
 .steps{list-style:none;margin:16px 0 0;padding:0}
 .steps li{display:grid;grid-template-columns:48px 1fr;gap:14px;padding:14px 0;border-top:1px solid var(--line);align-items:start}
 .steps .ic{width:48px;height:48px;border-radius:50%;background:var(--mauve-soft);color:var(--mauve);display:flex;align-items:center;justify-content:center;position:relative}
@@ -158,8 +176,76 @@ button.cta:disabled{background:var(--line);color:var(--muted);cursor:default;bor
     <h3 id="hTitle">¿Cómo comprar?</h3>
     <p class="sub">Es muy fácil, en 6 pasos.</p>
     <ol class="steps" id="steps"></ol>
-    <p class="note">La disponibilidad se confirma en cuanto recibimos tu lista.</p>
+    <p class="note">La disponibilidad se confirma en cuanto recibimos tu lista. <button type="button" class="plink" id="hpol">Lee nuestras políticas</button></p>
     <button class="cta" id="hgo" type="button">Ver el catálogo</button>
+  </div>
+</dialog>
+<dialog id="pdlg" aria-labelledby="pTitle">
+  <div class="dtop"><button class="close" id="pclose" aria-label="Cerrar">×</button></div>
+  <div class="lbody">
+    <h3 id="pTitle">Políticas de Kutelle</h3>
+    <p class="sub">Lo que necesitas saber antes de comprar o apartar.</p>
+    <div class="pol">
+      <details open><summary>Piezas únicas</summary><div class="pb">
+        <p class="lead">En Kutelle cada prenda es única: solo tenemos una de cada modelo 💛</p>
+        <p>Por eso, si algo te gustó, escríbenos pronto para que no se te vaya. Una prenda queda reservada para ti cuando confirmamos tu pago o dejas un apartado; mientras tanto, otra persona también podría comprarla. En la página verás “1 pieza disponible” en cada prenda, y si ya no aparece, es porque ya encontró nuevo hogar.</p>
+      </div></details>
+      <details><summary>Apartados</summary><div class="pb">
+        <p class="lead">¿Te encantó una prenda pero quieres pagarla después? Puedes apartarla 💛</p>
+        <ul>
+          <li>Para apartar, dejas un anticipo de mínimo el <b>50%</b> del precio de la prenda.</li>
+          <li>Tu prenda queda apartada por <b>24 horas</b>. En ese tiempo nos vemos para la entrega y ahí pagas el resto.</li>
+          <li>Como cada prenda es única y mientras está apartada no la ofrecemos a otras personas, el anticipo <b>no es reembolsable</b>.</li>
+          <li>Si algo se te complica, escríbenos antes de que se cumplan las 24 horas y vemos si podemos acomodarnos. Si no tenemos noticias tuyas, la prenda vuelve a estar disponible.</li>
+        </ul>
+      </div></details>
+      <details><summary>Formas de pago</summary><div class="pb">
+        <p class="lead">Puedes pagar tu prenda de la forma que te sea más cómoda:</p>
+        <ul>
+          <li><b>Efectivo:</b> lo recibimos con la cantidad exacta, ya que no siempre contamos con cambio 💛</li>
+          <li><b>Transferencia:</b> te compartimos nuestros datos al momento de tu compra o apartado, y nos envías tu comprobante.</li>
+          <li><b>Tarjeta:</b> también puedes pagar con tarjeta de crédito o débito, en nuestros puntos de entrega y a domicilio.</li>
+        </ul>
+        <p>Tu prenda se entrega una vez confirmado el pago.</p>
+      </div></details>
+      <details><summary>Entrega</summary><div class="pb">
+        <p class="lead">Por ahora entregamos en persona 💛</p>
+        <p><b>Punto de encuentro (sin costo):</b></p>
+        <ul>
+          <li>Walmart Clouthier</li>
+          <li>Centro Max</li>
+          <li>Chedraui Torres Landa</li>
+          <li>Soriana Malecón</li>
+          <li>Walmart Torres Landa</li>
+          <li>Plaza Galerías</li>
+        </ul>
+        <p><b>A domicilio:</b> también podemos llevarte tu prenda hasta tu casa por <b>$40</b>. Si tu compra es de <b>$999 o más</b>, el envío a domicilio es gratis.</p>
+        <p>Al apartar o comprar, nos ponemos de acuerdo en el punto o la dirección, el día y la hora que mejor te acomoden. Si es apartado, el resto se paga al momento de la entrega, dentro de las 24 horas.</p>
+        <p>Por ahora no hacemos envíos por paquetería. Cuando empecemos, te lo haremos saber por aquí.</p>
+      </div></details>
+      <details><summary>Cambios y devoluciones</summary><div class="pb">
+        <p class="lead">Como cada prenda es única, no hacemos cambios ni devoluciones 💛</p>
+        <p>Por eso te pedimos revisar bien las fotos, la talla y los detalles de la prenda antes de comprar. Si tienes cualquier duda, con gusto te mandamos más fotos o te ayudamos a resolverla antes de que decidas.</p>
+        <p>Si tu prenda llega con algún detalle que no se mostró en las fotos, escríbenos el mismo día de la entrega y lo revisamos juntas.</p>
+      </div></details>
+      <details><summary>Descripción y fotos</summary><div class="pb">
+        <p class="lead">Todas nuestras prendas son nuevas 💛</p>
+        <p>Nos esforzamos para que las fotos y la descripción de cada prenda se parezcan lo más posible a la realidad, incluyendo la talla. Los colores pueden verse un poco distintos según la pantalla de tu celular.</p>
+        <p>Si quieres ver más detalle, pídenos más fotos o un video y con gusto te lo mandamos.</p>
+      </div></details>
+      <details><summary>Compras en Dafela Nail Studio</summary><div class="pb">
+        <p class="lead">También puedes comprar tus prendas directamente en Dafela Nail Studio 💛</p>
+        <p>Ahí puedes verlas, probártelas y llevártelas en el momento. El precio es el mismo que en nuestra página, sin cargos extra.</p>
+        <p>Ten en cuenta que en Dafela no encontrarás todas las prendas del catálogo, porque no las llevamos todas. Si te interesa una en particular, escríbenos y te decimos si está en Dafela 💛</p>
+        <p>Al probártelas, te pedimos cuidarlas mucho: cada prenda es única y es nueva. Si alguna llegara a dañarse durante la prueba, se cubriría su costo.</p>
+        <p>En Dafela, por ahora, aceptamos pago en <b>efectivo</b> (cantidad exacta) o <b>transferencia</b>. El pago con tarjeta está disponible en nuestros puntos de entrega y a domicilio.</p>
+        <p>Gracias a Dafela Nail Studio por darle un espacio a Kutelle 💛</p>
+      </div></details>
+      <details><summary>Privacidad</summary><div class="pb">
+        <p>Los datos que nos compartes (nombre, teléfono y dirección de entrega) los usamos solo para atender tu compra o apartado y coordinar la entrega. No los compartimos con otras personas ni los usamos para otros fines 💛</p>
+      </div></details>
+    </div>
+    <button class="cta" id="pgo" type="button">Ver el catálogo</button>
   </div>
 </dialog>
 <dialog id="ldlg" aria-labelledby="lTitle">
@@ -199,9 +285,9 @@ let S = { name: 'Kutelle', whatsapp: '' }, products = [], allCats = [], current 
 
 function header(updatedAt) {
   const updated = updatedAt ? new Date(updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b></span></p>` + `<button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button>`;
+  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b></span></p>` + `<div class="hrow"><button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button><button type="button" class="polbtn" id="polBtn">${ico('check')}Políticas</button></div>`;
   document.title = 'Catálogo ' + (S.name || 'Kutelle');
-  $('#foot').innerHTML = `<b class="flogo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</b>` + (S.whatsapp ? 'Arma tu lista y envíanosla por WhatsApp o Instagram.<br>¡Gracias por elegirnos!' : 'Gracias por elegirnos.') + `<a class="ig" href="https://instagram.com/kutelle" target="_blank" rel="noopener">@kutelle</a>`;
+  $('#foot').innerHTML = `<b class="flogo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</b>` + (S.whatsapp ? 'Arma tu lista y envíanosla por WhatsApp o Instagram.<br>¡Gracias por elegirnos!' : 'Gracias por elegirnos.') + `<a class="ig" href="https://instagram.com/kutelle" target="_blank" rel="noopener">@kutelle</a><br><button type="button" class="plink" id="polFoot">Políticas de Kutelle</button>`;
 }
 function renderPills() {
   $('#pills').innerHTML = [['all', 'Todo'], ...allCats.map(c => [c, c])].map(([v, l]) => `<button class="pill" data-c="${esc(v)}" aria-pressed="${current === v}">${esc(l)}</button>`).join('');
@@ -296,17 +382,23 @@ const IC = {
 };
 const ico = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>`;
 const STEPS = [
-  ['hanger', 'Elige tus prendas', 'Navega por el catálogo y toca la pieza que te guste para ver sus fotos, talla y precio.'],
-  ['heart', 'Arma tu lista', 'Toca <b>“Agregar a mi lista”</b> en cada prenda que quieras. Puedes quitar o cambiar cantidades cuando quieras.'],
+  ['hanger', 'Elige tus prendas', 'Navega por el catálogo y toca la pieza que te guste para ver sus fotos, talla y precio. Recuerda que <b>cada prenda es única</b>.'],
+  ['heart', 'Arma tu lista', 'Toca <b>“Agregar a mi lista”</b> en cada prenda que quieras. Puedes quitar prendas cuando quieras.'],
   ['send', 'Envíanos tu lista', 'Cuando termines, toca <b>“Generar imagen de mi lista”</b> y mándanosla por <b>WhatsApp o Instagram</b>.'],
-  ['check', 'Confirmamos tu pedido', 'Revisamos que todo siga disponible y te confirmamos tu pedido.'],
-  ['card', 'Realiza tu pago', 'Tienes <b>24 horas</b> para pagar. Te enviamos los datos de pago por mensaje al confirmar tu pedido.'],
-  ['box', 'Coordinamos tu entrega', 'Cuando recibimos tu pago, nos ponemos de acuerdo. Puede ser en <b>punto medio, sin costo de envío</b>, o <b>a domicilio en León</b> con un costo de envío de <b>' + money(ENVIO) + '</b>' + (ENVIO_GRATIS > 0 ? '. <b>¡Envío gratis</b> en compras desde <b>' + money(ENVIO_GRATIS) + '</b>!' : '.')]
+  ['check', 'Confirmamos tu pedido', 'Revisamos que tus prendas sigan disponibles y te lo confirmamos. Una prenda queda reservada para ti cuando <b>confirmamos tu pago</b> o <b>dejas un apartado</b>.'],
+  ['card', 'Paga o aparta', 'Puedes pagar por <b>efectivo</b> (cantidad exacta), <b>transferencia</b> o <b>tarjeta</b>. Si prefieres pagar después, <b>aparta con mínimo el 50%</b>: tu prenda queda guardada <b>24 horas</b> y el anticipo no es reembolsable. Te compartimos los datos de pago al confirmar.'],
+  ['box', 'Coordinamos tu entrega', 'Entregamos <b>en persona</b>: en un <b>punto de encuentro, sin costo</b>, o <b>a domicilio</b> por <b>' + money(ENVIO) + '</b>' + (ENVIO_GRATIS > 0 ? ' (<b>¡gratis</b> en compras desde <b>' + money(ENVIO_GRATIS) + '</b>!)' : '') + '. Si apartaste, pagas el resto al recibir tu prenda, dentro de las 24 horas.']
 ];
 $('#steps').innerHTML = STEPS.map(([k, t, d], i) => `<li><div class="ic">${ico(k)}<i>${i + 1}</i></div><div><h4>${t}</h4><p>${d}</p></div></li>`).join('');
 $('#mast').addEventListener('click', e => { if (e.target.closest('.how')) { $('#hdlg').showModal(); $('#hdlg').scrollTop = 0; } });
 $('#hclose').onclick = $('#hgo').onclick = () => $('#hdlg').close();
 $('#hdlg').addEventListener('click', e => { if (e.target === $('#hdlg')) $('#hdlg').close(); });
+const openPol = () => { $('#pdlg').showModal(); $('#pdlg').scrollTop = 0; };
+$('#mast').addEventListener('click', e => { if (e.target.closest('#polBtn')) openPol(); });
+$('#foot').addEventListener('click', e => { if (e.target.closest('#polFoot')) openPol(); });
+$('#pclose').onclick = $('#pgo').onclick = () => $('#pdlg').close();
+$('#hpol').onclick = () => { $('#hdlg').close(); openPol(); };
+$('#pdlg').addEventListener('click', e => { if (e.target === $('#pdlg')) $('#pdlg').close(); });
 
 /* ---------- Mi lista (pedido) ---------- */
 const LKEY = 'kutelle_lista';
