@@ -105,6 +105,10 @@ textarea.field{resize:vertical;min-height:90px}
 .pill{display:inline-block;font-size:.75rem;font-weight:700;border-radius:999px;padding:2px 9px;border:1.5px solid currentColor}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px;background:var(--surface)}
 #venTabs button{font-size:.82rem;padding:10px 2px}
+.pf{background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;margin:6px 0 12px}
+.pf .pfl{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:.95rem}
+.pf .pfl.mut{color:var(--muted)}
+.pf .pfl.big{font-weight:800;font-size:1.1rem;border-top:1px solid var(--line);margin-top:6px;padding-top:9px}
 .seg button{border:0;background:transparent;padding:10px 4px;font-weight:600;font-size:.9rem;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 /* nav */
@@ -510,11 +514,16 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <p class="hint" id="fShowHint" style="margin-top:2px"></p>
     <div class="row2">
       <div><label class="lbl" for="fSku">SKU</label><input class="field" id="fSku" maxlength="60" autocapitalize="characters"></div>
-      <div><label class="lbl" for="fPrice">Precio de venta</label><input class="field num" id="fPrice" type="number" step="0.01" min="0" inputmode="decimal"></div>
+      <div><label class="lbl" for="fPrice" id="fPriceLbl">Precio de venta</label><input class="field num" id="fPrice" type="number" step="0.01" min="0" inputmode="decimal"></div>
     </div>
     <div class="row2">
       <div><label class="lbl" for="fCost">Costo unitario</label><input class="field num" id="fCost" type="number" step="0.01" min="0" inputmode="decimal"></div>
       <div><label class="lbl" for="fPack">Empaque por pieza</label><input class="field num" id="fPack" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    </div>
+    <div class="pf" id="fFinalBox">
+      <label class="chk" style="display:flex;gap:10px;align-items:center;font-weight:600"><input type="checkbox" id="fAddFees" style="width:20px;height:20px"> Sumar la comisión y la renta del salón al precio</label>
+      <div id="fFinalLines" class="num"></div>
+      <p class="hint" id="fFinalHint" style="margin-top:6px"></p>
     </div>
     <div class="suggest" id="fSuggest" hidden>
       <div class="sg-head"><b>Precio sugerido</b><button type="button" class="linkbtn" id="sgSet">Ajustar</button></div>
@@ -1578,7 +1587,7 @@ function openForm(id, code) {
   $('#fTitle').textContent = p ? 'Editar producto' : 'Nuevo producto';
   $('#fPhotosLbl').textContent = 'Fotos del producto (hasta 3)'; showTouched = !!p; $('#fShow').checked = p ? !p.hidden : false; updShow();
   $('#fSku').value = p?.sku || ''; $('#fSku').readOnly = !!p;
-  $('#fPrice').value = p ? (p.price ?? '') : '';
+  $('#fPrice').value = p ? (p.basePrice != null ? p.basePrice : (p.price ?? '')) : ''; $('#fAddFees').checked = p ? p.basePrice != null : true;
   $('#fCode').value = p?.barcode || code || ''; codeUi();
   $('#fNewQty').hidden = !!p; $('#fInitBox').hidden = !p;
   $('#fQty').value = ''; $('#fQtyType').value = 'compra'; $('#fPurNo').value = ''; $('#fQtyType').onchange();
@@ -1655,8 +1664,9 @@ $('#pForm').onsubmit = async e => {
     for (let i = 0; i < 3; i++) { const im = slotFiles[i] ? await prepareImage(slotFiles[i]) : slotExisting[i]; if (im) images.push(im); }
     const qty = Math.max(0, parseInt($('#fQty').value, 10) || 0);
     const asPurchase = isNew && $('#fQtyType').value === 'compra';
+    const feeR = $('#fAddFees').checked ? feeCalc(num(priceRaw), $('#fCost').value, $('#fPack').value) : null;
     const data = {
-      ...prev, sku, price: Math.max(0, num(priceRaw)), barcode: code,
+      ...prev, sku, price: Math.max(0, feeR ? feeR.final : num(priceRaw)), basePrice: feeR ? num(priceRaw) : null, barcode: code,
       name: $('#fName').value.trim(), category: $('#fCat').value, size: $('#fSize').value, fit: $('#fFit').value.trim(), color: $('#fColor').value.trim(),
       refPrice: num($('#fRef').value) || null, supplier: $('#fSupplier').value.trim(), cost: Math.max(0, num($('#fCost').value)), packaging: Math.max(0, num($('#fPack').value)),
       minStock: Math.max(0, parseInt($('#fMin').value, 10) || 0), images, hidden: !$('#fShow').checked,
@@ -1722,11 +1732,36 @@ function calcSuggest() {
   }
   return { cost, pack, base, T, am, rec, kind, cap, R, refSrc, byMargin, byFloor, margin: marginOf(rec), profit: rec - base, floorM, below: P.below };
 }
+/* Precio final = precio base + comisión de la vendedora + renta del salón.
+   Ambas son un % de TU ganancia, así que se calcula el precio que, después de pagarlas, te deja la ganancia del precio base. Se redondea a terminar en 9. */
+function feeCalc(base, cost, pack) {
+  const c = salonRate() / 100, rn = salonRent() / 100, k = c + rn, cb = num(cost) + num(pack), G0 = base - cb;
+  if (!(base > 0) || k >= 1) return null;
+  if (G0 <= 0 || k === 0) return { base, com: 0, ren: 0, round: 0, final: base, keep: Math.max(0, G0), noFees: true, c, rn, cb };
+  const F = up9(cb + G0 / (1 - k)), prof = F - cb, com = prof * c, ren = prof * rn;
+  return { base, com, ren, round: Math.max(0, F - base - com - ren), final: F, keep: prof - com - ren, c, rn, cb };
+}
+function renderFinal() {
+  const on = $('#fAddFees').checked, box = $('#fFinalLines'), hint = $('#fFinalHint'); if (!box) return;
+  $('#fPriceLbl').textContent = on ? 'Precio base (antes de comisión y renta)' : 'Precio de venta';
+  if (!on) { box.innerHTML = ''; hint.textContent = 'Apagado: el precio que escribes es el precio final de venta.'; return; }
+  const r = feeCalc(num($('#fPrice').value), $('#fCost').value, $('#fPack').value);
+  if (!r) { box.innerHTML = '<div class="pfl mut">Escribe el precio base para calcular el precio final.</div>'; hint.textContent = ''; return; }
+  const m = x => money(x).replace('.00', ''), pc = x => Math.round(x * 1000) / 10;
+  box.innerHTML = `<div class="pfl"><span>Precio base</span><span>${m(r.base)}</span></div>` +
+    `<div class="pfl"><span>+ Comisión de la vendedora (${pc(r.c)}%)</span><span>${m(r.com)}</span></div>` +
+    `<div class="pfl"><span>+ Renta del salón (${pc(r.rn)}%)</span><span>${m(r.ren)}</span></div>` +
+    (r.round > 0.5 ? `<div class="pfl mut"><span>+ Redondeo a terminar en 9</span><span>${m(r.round)}</span></div>` : '') +
+    `<div class="pfl big"><span>Precio final de venta</span><span>${m(r.final)}</span></div>`;
+  hint.textContent = r.noFees ? 'Con este precio y costo no hay ganancia de la cual calcular comisión y renta.' : `Se calculan como % de tu ganancia. Vendida en el salón te quedan ${m(r.keep)} por pieza; fuera del salón no pagas nada de eso y te quedan ${m(r.final - r.cb)}.`;
+}
+['fPrice', 'fCost', 'fPack'].forEach(id => $('#' + id).addEventListener('input', renderFinal));
+$('#fAddFees').addEventListener('change', renderFinal);
 function renderSuggest() {
   const box = $('#fSuggest'); if (!box) return;
   box.hidden = false;
   const r = calcSuggest(), L = $('#sgLines'), pr = $('#sgPrice'), use = $('#sgUse'), note = $('#sgNote');
-  if (!r) { pr.textContent = '—'; use.textContent = 'Escribir el costo'; use.dataset.mode = 'cost'; L.innerHTML = '<span class="mut">Escribe el costo de la pieza y te calculo el precio.</span>'; note.textContent = ''; return; }
+  if (!r) { pr.textContent = '—'; use.textContent = 'Escribir el costo'; use.dataset.mode = 'cost'; L.innerHTML = '<span class="mut">Escribe el costo de la pieza y te calculo el precio.</span>'; note.textContent = ''; renderFinal(); return; }
   use.dataset.mode = 'price'; use.textContent = 'Usar este precio';
   pr.textContent = money(r.rec).replace('.00', '');
   const pct = x => Math.round(x * 100) + '%';
@@ -1747,6 +1782,7 @@ function renderSuggest() {
   // Pieza nueva: si no has escrito el precio tú mismo, lo pongo en automático
   const price = $('#fPrice');
   if (!editingId && price.dataset.touched !== '1') { price.value = r.rec; }
+  renderFinal();
 }
 const cap1 = t => t.charAt(0).toUpperCase() + t.slice(1);
 ['fCost', 'fPack', 'fRef'].forEach(id => $('#' + id).addEventListener('input', renderSuggest));
@@ -1962,7 +1998,7 @@ $('#saleForm').onsubmit = async e => {
 const saleSalonRate = key => { const tk = key ? D.tickets.find(x => x.number === key) : null; const r0 = tk && tk.rows[0]; return r0 && r0.salon && r0.salonRate != null ? num(r0.salonRate) : salonRate(); };
 const saleSalonRent = key => { const tk = key ? D.tickets.find(x => x.number === key) : null; const r0 = tk && tk.rows[0]; return r0 && r0.salon && r0.salonRent != null ? num(r0.salonRent) : salonRent(); };
 const salonRate = () => { const x = parseFloat((S.config.salon || {}).rate); return isFinite(x) && x >= 0 ? x : 10; };
-const salonRent = () => { const x = parseFloat((S.config.salon || {}).rent); return isFinite(x) && x >= 0 ? x : 5; };
+const salonRent = () => { const x = parseFloat((S.config.salon || {}).rent); return isFinite(x) && x >= 0 ? x : 10; };
 const salonLogs = () => Object.entries(S.config).filter(([k, v]) => k.startsWith('sal_') && v && v.kind === 'salon').map(([id, v]) => ({ id, ...v }));
 function salonStock() {
   const m = {};
