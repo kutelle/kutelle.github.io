@@ -35,6 +35,13 @@ h1{font-family:var(--serif);font-weight:400;font-size:clamp(3.4rem,16vw,6.8rem);
 h1 em{font-style:italic}
 .logo{display:block;width:min(78%,420px);aspect-ratio:1/var(--logoR);margin:0;background:currentColor;-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat;font-size:0;color:var(--ink)}
 .updated{margin:14px 0 0;color:var(--muted);font-size:.95rem;letter-spacing:.01em}
+.bf{margin:14px 0 0;max-width:460px;padding:14px 18px;border-radius:16px;background:#F6EBDD;color:var(--mauve);border:2px dashed var(--mauve);font-family:var(--sans);text-align:center;line-height:1.35}
+.bf .t{font-weight:700;font-size:clamp(1.1rem,4.6vw,1.3rem);letter-spacing:.02em}
+.bf .d{font-size:.95rem;font-weight:500;margin-top:4px}
+.bf .c{font-size:.85rem;font-weight:700;margin-top:6px;letter-spacing:.04em;text-transform:uppercase}
+.bf.on{background:var(--mauve);color:#F6EBDD;border:2px solid #E2BF7F}.bf.on .t{color:#F0CD8E}
+.li .p s{opacity:.55;font-weight:400;margin-right:6px}
+.dscl{display:flex;justify-content:space-between;margin:0 0 6px;font-size:.92rem;color:var(--mauve)}
 .unique{display:flex;align-items:center;gap:14px;margin:18px 0 0;padding:16px 18px;max-width:460px;border-radius:16px;background:var(--mauve);border:1px solid #E2BF7F;color:#F6EBDD;font-family:var(--sans);font-size:clamp(1.05rem,4.4vw,1.25rem);font-weight:600;letter-spacing:.01em;line-height:1.35;box-shadow:0 8px 22px rgba(87,16,12,.30)}
 .unique svg{flex:none;width:30px;height:30px;color:#E2BF7F;fill:#E2BF7F}
 .unique b{color:#F0CD8E;font-weight:700;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px}
@@ -256,6 +263,7 @@ button.cta:disabled{background:var(--line);color:var(--muted);cursor:default;bor
       <p class="sub">Revisa tus piezas, genera la imagen y envíanosla para apartarlas.</p>
       <div id="items"></div>
       <div class="ship" id="ship" hidden></div>
+      <div class="dscl" id="dscl" hidden></div>
       <div class="tot"><span>Total</span><b id="lTot"></b></div>
       <button class="cta" id="gen" type="button">Generar imagen de mi lista</button>
       <button class="cta alt" id="clear" type="button">Vaciar lista</button>
@@ -285,7 +293,7 @@ let S = { name: 'Kutelle', whatsapp: '' }, products = [], allCats = [], current 
 
 function header(updatedAt) {
   const updated = updatedAt ? new Date(updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b></span></p>` + `<div class="hrow"><button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button><button type="button" class="polbtn" id="polBtn">${ico('check')}Políticas</button></div>`;
+  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b></span></p>` + bfBanner() + `<div class="hrow"><button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button><button type="button" class="polbtn" id="polBtn">${ico('check')}Políticas</button></div>`;
   document.title = 'Catálogo ' + (S.name || 'Kutelle');
   $('#foot').innerHTML = `<b class="flogo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</b>` + (S.whatsapp ? 'Arma tu lista y envíanosla por WhatsApp o Instagram.<br>¡Gracias por elegirnos!' : 'Gracias por elegirnos.') + `<a class="ig" href="https://instagram.com/kutelle" target="_blank" rel="noopener">@kutelle</a><br><button type="button" class="plink" id="polFoot">Políticas de Kutelle</button>`;
 }
@@ -370,6 +378,26 @@ function openItem(p) {
   $('#dlg').showModal();
 }
 /* ---------- Cómo comprar ---------- */
+// ---- BUEN FIN KUTELLE (promo por tiempo limitado) ----
+const BF = {
+  on: true, // pon false para apagar toda la promo
+  inicio: '2026-11-13T00:00:00-06:00', fin: '2026-11-17T23:59:59-06:00', // hora de México
+  anuncioDesde: '2026-11-04T00:00:00-06:00', // desde cuándo se muestra el aviso previo
+  tramos: [[3, 20], [2, 15]], // [piezas, % de descuento]; de mayor a menor
+  envioGratis: true // envío gratis a domicilio sin mínimo durante la promo
+};
+const bfNow = () => (window.__now ? window.__now() : Date.now());
+const bfActive = () => BF.on && bfNow() >= Date.parse(BF.inicio) && bfNow() <= Date.parse(BF.fin);
+const bfTeaser = () => BF.on && !bfActive() && bfNow() >= Date.parse(BF.anuncioDesde) && bfNow() < Date.parse(BF.inicio);
+const bfPct = n => { if (!bfActive()) return 0; for (const [q, d] of BF.tramos) if (n >= q) return d; return 0; };
+function bfBanner() {
+  if (!bfActive() && !bfTeaser()) return '';
+  const tr = BF.tramos.slice().reverse().map(([q, d]) => q + ' piezas = ' + d + '% menos').join(' · ');
+  const left = Date.parse(BF.fin) - bfNow(), pre = Date.parse(BF.inicio) - bfNow();
+  const dias = Math.ceil(pre / 864e5), hrs = Math.max(1, Math.ceil(left / 36e5));
+  const cd = bfActive() ? (left < 864e5 ? '¡Últimas ' + hrs + ' horas!' : 'Hasta el 17 de noviembre') : (dias <= 1 ? '¡Empieza mañana!' : 'Empieza en ' + dias + ' días');
+  return `<div class="bf${bfActive() ? ' on' : ''}" id="bf"><div class="t">BUEN FIN KUTELLE</div><div class="d">13 al 17 de noviembre · ${tr}${BF.envioGratis ? ' · envío gratis' : ''}</div><div class="c">${cd}</div></div>`;
+}
 const ENVIO = 40; // costo de envío a domicilio en León (MXN). Cámbialo aquí.
 const ENVIO_GRATIS = 999; // compra mínima (MXN) para envío gratis a domicilio en León. Pon 0 para desactivarlo.
 const IC = {
@@ -421,7 +449,10 @@ function reconcile() {
   renderBar(); if ($('#ldlg').open) renderList(); if ($('#dlg').open) syncAdd();
 }
 const cartLines = () => cart.map(c => ({ p: findP(c.k), q: c.q })).filter(l => l.p);
-const cartTotal = () => cartLines().reduce((s, l) => s + l.q * Number(l.p.price || 0), 0);
+const cartSub = () => cartLines().reduce((s, l) => s + l.q * Number(l.p.price || 0), 0);
+const cartDisc = () => Math.round(cartSub() * bfPct(cartCount()) / 100);
+const cartTotal = () => cartSub() - cartDisc();
+const freeShip = () => (bfActive() && BF.envioGratis) || (ENVIO_GRATIS > 0 && cartTotal() >= ENVIO_GRATIS);
 const cartCount = () => cartLines().reduce((s, l) => s + l.q, 0);
 function renderBar() {
   const n = cartCount();
@@ -451,8 +482,14 @@ function renderList() {
     <div class="ctl"><div class="qty"><button type="button" data-a="-" aria-label="Quitar una">−</button><span>${q}</span><button type="button" data-a="+" aria-label="Agregar una"${q >= p.stock ? ' disabled' : ''}>+</button></div>
     <span class="meta">${money(p.price)} c/u</span><button type="button" class="rm" data-a="x">Quitar</button></div></div>`).join('');
   $('#lTot').textContent = money(cartTotal());
+  const dl = $('#dscl'), dd = cartDisc();
+  if (dd > 0) { dl.hidden = false; dl.innerHTML = '<span>Buen Fin −' + bfPct(cartCount()) + '% (subtotal ' + money(cartSub()) + ')</span><b>−' + money(dd) + '</b>'; } else dl.hidden = true;
   const sh = $('#ship'), t = cartTotal();
-  if (ENVIO_GRATIS > 0) {
+  const nx = bfActive() ? BF.tramos.slice().reverse().find(([q]) => q > cartCount()) : null;
+  if (bfActive()) {
+    sh.hidden = false; sh.classList.add('ok');
+    sh.textContent = (BF.envioGratis ? '¡Envío gratis a domicilio en León por Buen Fin! ' : '') + (nx ? 'Agrega ' + (nx[0] - cartCount()) + (nx[0] - cartCount() === 1 ? ' pieza' : ' piezas') + ' más y llévate ' + nx[1] + '% de descuento.' : '');
+  } else if (ENVIO_GRATIS > 0) {
     sh.hidden = false; sh.classList.toggle('ok', t >= ENVIO_GRATIS);
     sh.textContent = t >= ENVIO_GRATIS ? '¡Tienes envío gratis a domicilio en León!' : 'Te faltan ' + money(ENVIO_GRATIS - t) + ' para envío gratis a domicilio en León';
   } else sh.hidden = true;
@@ -555,7 +592,8 @@ async function drawSlip() {
   x.textAlign = 'left'; x.fillStyle = INK; x.font = '400 34px ' + sans; sp('5px'); x.fillText('TOTAL', X0, y); sp('0px');
   x.textAlign = 'right'; x.font = '600 44px ' + sans; x.fillText(money(total), X1, y);
   y += 46; x.font = '400 24px ' + sans; x.fillStyle = MUTED; x.textAlign = 'left'; x.fillText(pcs + (pcs === 1 ? ' pieza' : ' piezas'), X0, y);
-  if (ENVIO_GRATIS > 0 && total >= ENVIO_GRATIS) { x.textAlign = 'right'; x.fillStyle = VINO; x.font = '600 23px ' + sans; x.fillText('Incluye envío gratis en León', X1, y); }
+  if (cartDisc() > 0) { x.textAlign = 'right'; x.fillStyle = VINO; x.font = '600 23px ' + sans; x.fillText('Buen Fin −' + bfPct(pcs) + '% (ahorras ' + money(cartDisc()) + ')', X1, y); y += 32; }
+  if (freeShip()) { x.textAlign = 'right'; x.fillStyle = VINO; x.font = '600 23px ' + sans; x.fillText('Incluye envío gratis en León', X1, y); }
   y += 72;
   x.textAlign = 'center'; x.fillStyle = '#8A8A87'; x.font = '400 30px ' + sans; sp('3px'); x.fillText('¡GRACIAS POR ELEGIRNOS!', CX, y); sp('0px');
   // código de barras decorativo a partir del folio
@@ -579,7 +617,7 @@ $('#gen').onclick = async () => {
     const wa = $('#wa');
     if (S.whatsapp) {
       const lines = cartLines().map(l => `• ${l.q} x ${l.p.name || ''}${l.p.color ? ' ' + l.p.color : ''} (SKU ${l.p.sku})`).join('\n');
-      wa.hidden = false; wa.href = 'https://wa.me/' + String(S.whatsapp).replace(/\D/g, '') + '?text=' + encodeURIComponent(`Hola, te mando mi lista de pedido (folio ${slipFolio}). Total ${money(cartTotal())}.\n${lines}`);
+      wa.hidden = false; wa.href = 'https://wa.me/' + String(S.whatsapp).replace(/\D/g, '') + '?text=' + encodeURIComponent(`Hola, te mando mi lista de pedido (folio ${slipFolio}). Total ${money(cartTotal())}${cartDisc() > 0 ? ' (con ' + bfPct(cartCount()) + '% de descuento Buen Fin)' : ''}.\n${lines}`);
     } else wa.hidden = true;
     $('#rhint').textContent = S.whatsapp ? 'Primero guarda o comparte la imagen; después ábrela en el chat de WhatsApp para enviarla.' : 'También puedes mantener presionada la imagen para guardarla o tomarle captura.';
     $('#lview').hidden = true; $('#rview').hidden = false;

@@ -598,11 +598,11 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <label class="lbl" for="salePct">Descuento</label>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div class="chips" id="pctChips">
-        <button type="button" class="chip" data-p="">Sin descuento</button><button type="button" class="chip" data-p="10">10%</button><button type="button" class="chip" data-p="15">15%</button><button type="button" class="chip" data-p="20">20%</button><button type="button" class="chip" data-p="30">30%</button>
+        <button type="button" class="chip" data-p="">Sin descuento</button><button type="button" class="chip" data-p="10">10%</button><button type="button" class="chip" data-p="15">15%</button><button type="button" class="chip" data-p="20">20%</button><button type="button" class="chip" data-p="30">30%</button><button type="button" class="chip" data-p="bf" id="bfChip" hidden>Buen Fin</button>
       </div>
       <div style="display:flex;align-items:center;gap:6px"><input class="field num" id="salePct" type="number" min="0" max="100" step="0.5" inputmode="decimal" placeholder="Otro" style="width:90px;text-align:right" aria-label="Porcentaje de descuento"><b>%</b></div>
     </div>
-    <p class="hint">Se aplica a todas las piezas. Si quieres, ajusta el descuento en pesos de una pieza en particular.</p>
+    <p class="hint">Se aplica a todas las piezas. Si quieres, ajusta el descuento en pesos de una pieza en particular.<span id="bfHint" hidden> «Buen Fin»: 2 piezas = 15%, 3 o más = 20% (se ajusta solo según cuántas piezas lleves).</span></p>
     <div id="saleCash" hidden style="margin-top:10px;padding:12px;border:1.5px solid var(--line);border-radius:12px">
       <label class="lbl" for="saleCashIn" style="margin-top:0">Efectivo recibido</label>
       <input class="field num" id="saleCashIn" type="number" min="0" step="0.01" inputmode="decimal" placeholder="¿Cuánto te dan?">
@@ -1841,6 +1841,7 @@ function saleSplit(goods, items, fee, channel) {
 }
 function updateTotal(kind) {
   const t = T[kind];
+  if (kind === 'sale') bfSync();
   if (kind === 'sale') {
     const sub = t.items.reduce((s, it) => s + num(it.qty) * num(it.unitPrice), 0);
     const disc = t.items.reduce((s, it) => s + num(it.discount), 0);
@@ -1889,7 +1890,7 @@ function updateTotal(kind) {
     it[inp.dataset.k] = inp.value;
     if (kind === 'sale') {
       const pct = salePct();
-      if (inp.dataset.k === 'discount') { $('#salePct').value = ''; syncPctChips(); }
+      if (inp.dataset.k === 'discount') { bfMode = false; $('#salePct').value = ''; syncPctChips(); }
       else if (pct > 0) { it.discount = pctDisc(it, pct); const d = inp.closest('.it').querySelector('input[data-k="discount"]'); if (d) d.value = it.discount; }
     }
     updateTotal(kind);
@@ -1898,10 +1899,24 @@ function updateTotal(kind) {
 });
 const salePct = () => Math.min(100, Math.max(0, num($('#salePct').value)));
 const pctDisc = (it, pct) => pct > 0 ? Math.round(num(it.qty) * num(it.unitPrice) * pct) / 100 : '';
-function syncPctChips() { const v = $('#salePct').value; $$('#pctChips .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.p === v || (!v && c.dataset.p === '' )))); }
+let bfMode = false;
+const BF_T = [[3, 20], [2, 15]];
+const bfPctFor = n => { for (const [q, d] of BF_T) if (n >= q) return d; return 0; };
+const bfQty = () => T.sale.items.reduce((s, it) => s + num(it.qty), 0);
+function syncPctChips() { const v = $('#salePct').value; $$('#pctChips .chip').forEach(c => c.setAttribute('aria-pressed', String(bfMode ? c.dataset.p === 'bf' : (c.dataset.p === v || (!v && c.dataset.p === ''))))); }
+function bfSync() {
+  if (!bfMode) return;
+  const pct = bfPctFor(bfQty());
+  if (String(pct || '') !== $('#salePct').value) {
+    $('#salePct').value = pct || '';
+    T.sale.items.forEach(it => { it.discount = pctDisc(it, pct); });
+    $$('#saleItems .it').forEach((row, i) => { const d = row.querySelector('input[data-k="discount"]'); if (d && T.sale.items[i]) d.value = T.sale.items[i].discount; });
+  }
+  syncPctChips();
+}
 function applySalePct() { const pct = salePct(); T.sale.items.forEach(it => { it.discount = pctDisc(it, pct); }); syncPctChips(); renderItems('sale'); }
-$('#pctChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; $('#salePct').value = c.dataset.p; applySalePct(); });
-$('#salePct').addEventListener('input', applySalePct);
+$('#pctChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; if (c.dataset.p === 'bf') { bfMode = true; $('#salePct').value = bfPctFor(bfQty()) || ''; } else { bfMode = false; $('#salePct').value = c.dataset.p; } applySalePct(); });
+$('#salePct').addEventListener('input', () => { bfMode = false; applySalePct(); });
 function addItem(kind, sku) {
   const p = D.bySku[sku]; if (!p) return false;
   const t = T[kind]; const ex = t.items.find(it => it.sku === sku);
@@ -1939,7 +1954,9 @@ function openSale(number, firstSku) {
   $('#salePay').innerHTML = opts(L.payments, tk ? tk.payment : lsGet('lastPay', L.payments[0]), 'Sin método');
   if (tk) t.items = tk.rows.map(r => ({ sku: r.sku, qty: num(r.qty), unitPrice: num(r.unitPrice), discount: num(r.discount) || '' }));
   const pcts = tk ? [...new Set(tk.rows.map(r => r.discountPct || ''))] : [''];
-  $('#salePct').value = pcts.length === 1 && pcts[0] ? pcts[0] : ''; syncPctChips();
+  bfMode = false; $('#salePct').value = pcts.length === 1 && pcts[0] ? pcts[0] : '';
+  { const td = today(), on = td >= '2026-11-04' && td <= '2026-11-18'; $('#bfChip').hidden = !on; $('#bfHint').hidden = !on; }
+  syncPctChips();
   $('#saleShipMode').value = tk && tk.rows[0] && tk.rows[0].shipMode ? tk.rows[0].shipMode : 'none';
   { const sh = tk ? Object.values(S.shipments).find(x => String(x.saleNo) === tk.number) : null; $('#saleAddr').value = sh ? (sh.address || '') : ''; $('#saleCity').value = sh ? (sh.city || '') : 'León'; $('#salePhone').value = sh ? (sh.phone || '') : ''; }
   $('#saleSalon').value = tk && tk.rows[0] && tk.rows[0].salon ? '1' : '0';
