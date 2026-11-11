@@ -383,7 +383,7 @@ const BF = {
   on: true, // pon false para apagar toda la promo
   inicio: '2026-11-13T00:00:00-06:00', fin: '2026-11-17T23:59:59-06:00', // hora de México
   anuncioDesde: '2026-11-04T00:00:00-06:00', // desde cuándo se muestra el aviso previo
-  tramos: [[3, 20], [2, 15]], // [piezas, % de descuento]; de mayor a menor
+  tramos: [[3, 20], [1, 15]], // [piezas, % de descuento]; de mayor a menor
   envioGratis: true // envío gratis a domicilio sin mínimo durante la promo
 };
 const bfNow = () => (window.__now ? window.__now() : Date.now());
@@ -392,7 +392,7 @@ const bfTeaser = () => BF.on && !bfActive() && bfNow() >= Date.parse(BF.anuncioD
 const bfPct = n => { if (!bfActive()) return 0; for (const [q, d] of BF.tramos) if (n >= q) return d; return 0; };
 function bfBanner() {
   if (!bfActive() && !bfTeaser()) return '';
-  const tr = BF.tramos.slice().reverse().map(([q, d]) => q + ' piezas = ' + d + '% menos').join(' · ');
+  const tr = BF.tramos.slice().reverse().map(([q, d], k) => q <= 1 ? d + '% en toda la tienda' : q + ' piezas o más = ' + d + '%').join(' · ');
   const left = Date.parse(BF.fin) - bfNow(), pre = Date.parse(BF.inicio) - bfNow();
   const dias = Math.ceil(pre / 864e5), hrs = Math.max(1, Math.ceil(left / 36e5));
   const cd = bfActive() ? (left < 864e5 ? '¡Últimas ' + hrs + ' horas!' : 'Hasta el 17 de noviembre') : (dias <= 1 ? '¡Empieza mañana!' : 'Empieza en ' + dias + ' días');

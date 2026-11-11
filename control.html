@@ -602,7 +602,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       </div>
       <div style="display:flex;align-items:center;gap:6px"><input class="field num" id="salePct" type="number" min="0" max="100" step="0.5" inputmode="decimal" placeholder="Otro" style="width:90px;text-align:right" aria-label="Porcentaje de descuento"><b>%</b></div>
     </div>
-    <p class="hint">Se aplica a todas las piezas. Si quieres, ajusta el descuento en pesos de una pieza en particular.<span id="bfHint" hidden> «Buen Fin»: 2 piezas = 15%, 3 o más = 20% (se ajusta solo según cuántas piezas lleves).</span></p>
+    <p class="hint">Se aplica a todas las piezas. Si quieres, ajusta el descuento en pesos de una pieza en particular.<span id="bfHint" hidden> «Buen Fin»: 15% en toda la tienda, 20% con 3 o más piezas (se ajusta solo según cuántas piezas lleves).</span></p>
     <div id="saleCash" hidden style="margin-top:10px;padding:12px;border:1.5px solid var(--line);border-radius:12px">
       <label class="lbl" for="saleCashIn" style="margin-top:0">Efectivo recibido</label>
       <input class="field num" id="saleCashIn" type="number" min="0" step="0.01" inputmode="decimal" placeholder="¿Cuánto te dan?">
@@ -1900,7 +1900,7 @@ function updateTotal(kind) {
 const salePct = () => Math.min(100, Math.max(0, num($('#salePct').value)));
 const pctDisc = (it, pct) => pct > 0 ? Math.round(num(it.qty) * num(it.unitPrice) * pct) / 100 : '';
 let bfMode = false;
-const BF_T = [[3, 20], [2, 15]];
+const BF_T = [[3, 20], [1, 15]];
 const bfPctFor = n => { for (const [q, d] of BF_T) if (n >= q) return d; return 0; };
 const bfQty = () => T.sale.items.reduce((s, it) => s + num(it.qty), 0);
 function syncPctChips() { const v = $('#salePct').value; $$('#pctChips .chip').forEach(c => c.setAttribute('aria-pressed', String(bfMode ? c.dataset.p === 'bf' : (c.dataset.p === v || (!v && c.dataset.p === ''))))); }
