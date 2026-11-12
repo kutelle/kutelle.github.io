@@ -112,9 +112,10 @@ textarea.field{resize:vertical;min-height:90px}
 .seg button{border:0;background:transparent;padding:10px 4px;font-weight:600;font-size:.9rem;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 /* nav */
+.pf-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px}.pf-per{flex:1;text-align:center;line-height:1.25}.pf-per b{display:block}.pf-per small{color:var(--muted)}.pf-nav .chip{font-size:1.05rem;min-width:40px}.row .r .chip{margin-top:5px}.bucket .nums .w{text-align:right}.bucket .nums .chip{font-size:.8rem;padding:5px 10px}
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1.5px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tabs div{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(7,1fr)}
-.tabs button{border:0;background:transparent;padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.72rem;font-weight:600;color:var(--muted);cursor:pointer}
+.tabs div{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(8,1fr)}
+.tabs button{border:0;background:transparent;padding:9px 1px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.66rem;font-weight:600;color:var(--muted);cursor:pointer}
 .tabs button[aria-current="page"]{color:var(--ink)}
 .tabs button[aria-current="page"] svg{background:var(--accent);color:var(--accent-ink);border-radius:8px}
 .tabs svg{width:34px;height:26px;padding:3px 7px}
@@ -376,6 +377,11 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     <div class="rows" id="wdList"></div>
   </section>
 
+  <!-- MI DINERO (personal) -->
+  <section id="s-per" hidden>
+    <div id="perBody"></div>
+  </section>
+
   <section id="s-res" hidden>
     <div class="chips dash-period" id="dashPeriod" role="group" aria-label="Periodo">
       <button class="chip" data-p="hoy" aria-pressed="false">Hoy</button>
@@ -469,6 +475,7 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
   <button data-s="cue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5C9.5 8.4 10.6 8 12 8s2.5.5 2.5 1.6c0 2.4-5 1.2-5 3.8 0 1.1 1.1 1.6 2.5 1.6s2.5-.5 2.5-1.6"/></svg>Cuentas</button>
   <button data-s="fin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>Finanzas</button>
   <button data-s="res"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Panel</button>
+  <button data-s="per"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Personal</button>
 </div></nav>
 
 <!-- Product detail -->
@@ -766,6 +773,21 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
     </div>
     <label class="lbl" for="wdNote">Nota (opcional)</label><input class="field" id="wdNote" maxlength="120" placeholder="Ej. mi sueldo de octubre">
     <div class="actions"><button type="button" class="btn danger" id="wdDel" hidden>Eliminar</button><button class="btn primary" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+
+<dialog id="dPf" aria-labelledby="pfTitle">
+  <div class="dhead"><h2 id="pfTitle">Mi dinero</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <form class="dbody" id="pfForm" autocomplete="off" novalidate>
+    <div id="pfFields"></div>
+    <div class="actions"><button type="button" class="btn danger" id="pfDel" hidden>Eliminar</button><button class="btn primary" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+<dialog id="dPfc" aria-labelledby="pfcTitle">
+  <div class="dhead"><h2 id="pfcTitle">Presupuestos y ahorro</h2><button class="close" data-close aria-label="Cerrar">×</button></div>
+  <form class="dbody" id="pfcForm" autocomplete="off" novalidate>
+    <div id="pfcFields"></div>
+    <div class="actions"><button class="btn primary" type="submit">Guardar</button></div>
   </form>
 </dialog>
 
@@ -1358,6 +1380,7 @@ function renderAll() {
   if (section === 'gas') renderExpenses();
   if (section === 'res') renderSummary();
   if (section === 'fin') renderFinance();
+  if (section === 'per') renderPersonal();
   if ($('#dDetail').open) renderDetail();
 }
 function fillDatalists() {
@@ -1369,12 +1392,12 @@ function fillDatalists() {
 const opts = (arr, sel, blank) => (blank ? `<option value="">${esc(blank)}</option>` : '') + arr.map(v => `<option${String(v) === String(sel) ? ' selected' : ''}>${esc(v)}</option>`).join('') + (sel && !arr.includes(sel) ? `<option selected>${esc(sel)}</option>` : '');
 
 /* ---------------- Navigation ---------------- */
-const TITLES = { inv: 'Inventario', ven: 'Ventas', com: 'Compras', cue: 'Cuentas', gas: 'Gastos', fin: 'Finanzas', res: 'Panel' };
+const TITLES = { inv: 'Inventario', ven: 'Ventas', com: 'Compras', cue: 'Cuentas', gas: 'Gastos', fin: 'Finanzas', res: 'Panel', per: 'Mi dinero' };
 $$('.tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.s)));
 function go(s) {
   section = s;
   $$('.tabs button').forEach(b => { if (b.dataset.s === s) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  ['inv', 'ven', 'com', 'cue', 'gas', 'fin', 'res'].forEach(k => $('#s-' + k).hidden = k !== s);
+  ['inv', 'ven', 'com', 'cue', 'gas', 'fin', 'res', 'per'].forEach(k => $('#s-' + k).hidden = k !== s);
   $('#secTitle').textContent = TITLES[s];
   window.scrollTo(0, 0); renderAll();
 }
@@ -3267,6 +3290,160 @@ async function exportExcel() {
   } finally { btn.disabled = !downloads; btn.textContent = 'Descargar Excel actualizado'; }
 }
 $('#xlsBtn').onclick = exportExcel;
+
+/* ---------------- Mi dinero (finanzas personales) ---------------- */
+const PF_CATS = ['Comida', 'Transporte', 'Casa y servicios', 'Salud', 'Cuidado personal', 'Diversión', 'Regalos', 'Otros'];
+const PF_SRC = ['Mi sueldo', 'Kutelle (lo que me tomo)', 'Mi esposo', 'Otra persona', 'Otro', 'Vales de despensa'];
+const pfV = r => r.acct === 'vales' || r.source === PF_SRC[5];
+const PF = { tab: 'q', per: null, hide: lsGet('pf-hide', '0') === '1' };
+const pm = n => PF.hide ? '•••••' : money(n);
+const pfRows = pre => Object.entries(S.config).filter(([k, v]) => k.startsWith(pre) && v).map(([id, v]) => ({ id, ...v }));
+const pfLast = (y, m) => new Date(y, m, 0).getDate();
+const perKey = iso => { const [y, m, d] = String(iso).split('-').map(Number); return y + '-' + pad2(m) + '-' + (d <= 15 ? 1 : 2); };
+const perRange = k => { const [y, m, h] = k.split('-').map(Number); return h === 1 ? [`${y}-${pad2(m)}-01`, `${y}-${pad2(m)}-15`] : [`${y}-${pad2(m)}-16`, `${y}-${pad2(m)}-${pad2(pfLast(y, m))}`]; };
+const perShift = (k, n) => { const [y, m, h] = k.split('-').map(Number); const idx = (y * 12 + (m - 1)) * 2 + (h - 1) + n; const mm = Math.floor(idx / 2); return Math.floor(mm / 12) + '-' + pad2(mm % 12 + 1) + '-' + (idx % 2 + 1); };
+const perLabel = k => { const [y, m, h] = k.split('-').map(Number); const mes = new Date(y, m - 1, 1).toLocaleDateString('es-MX', { month: 'long' }); return h === 1 ? `1 al 15 de ${mes} ${y}` : `16 al ${pfLast(y, m)} de ${mes} ${y}`; };
+const pfIn = (date, k) => { const [a, b] = perRange(k); return String(date) >= a && String(date) <= b; };
+function pfDue(p, k) {
+  if (p.active === false) return null;
+  if (p.from && k < perKey(p.from)) return null;
+  const [y, m] = k.split('-').map(Number), [a, b] = perRange(k);
+  if (p.freq === 'quincenal') return b;
+  if (p.freq === 'unico') return p.date && p.date >= a && p.date <= b ? p.date : null;
+  const d = `${y}-${pad2(m)}-${pad2(Math.min(Math.max(1, num(p.day) || 1), pfLast(y, m)))}`;
+  return d >= a && d <= b ? d : null;
+}
+function pfCalc(k) {
+  const [a, b] = perRange(k), within = r => r.date >= a && r.date <= b;
+  const sum = (arr, f) => arr.reduce((s, x) => s + f(x), 0);
+  const incAll = pfRows('pfi_'), expAll = pfRows('pfg_');
+  const inc = incAll.filter(r => !pfV(r) && (r.per ? r.per === k : within(r))), exp = expAll.filter(r => !pfV(r) && within(r)), dep = pfRows('pfa_').filter(within);
+  const vSaldo = incAll.filter(pfV).reduce((s, r) => s + num(r.amount), 0) - expAll.filter(pfV).reduce((s, r) => s + num(r.amount), 0);
+  const vInc = incAll.filter(r => pfV(r) && (r.per ? r.per === k : within(r)));
+  const paidDocs = pfRows('pfx_').filter(x => x.per === k), pays = pfRows('pfp_');
+  const due = pays.map(p => ({ p, date: pfDue(p, k), paid: paidDocs.find(x => x.pid === p.id) })).filter(x => x.date || x.paid);
+  const ingresos = sum(inc, r => num(r.amount)), gastos = sum(exp, r => num(r.amount)), ahorro = sum(dep, r => num(r.amount));
+  const hechos = sum(paidDocs, r => num(r.amount)), pend = sum(due.filter(x => !x.paid), x => num(x.p.amount));
+  const libre = ingresos - hechos - gastos - ahorro;
+  const dias = Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 864e5) + 1, wl = pfSettings().weekLimit;
+  const limite = Math.round(wl * dias / 7), usado = gastos + hechos;
+  return { a, b, inc, exp, dep, due, ingresos, gastos, ahorro, hechos, pend, libre, despues: libre - pend, vSaldo, vInc, limite, usado, wl };
+}
+const pfSettings = () => { const s = S.config.pf_settings || {}; return { savePct: s.savePct == null ? 10 : num(s.savePct), weekLimit: s.weekLimit == null ? 2800 : num(s.weekLimit), budgets: s.budgets || {} }; };
+function renderPersonal() {
+  if (!PF.per) PF.per = perKey(today());
+  const k = PF.per, c = pfCalc(k), cur = k === perKey(today());
+  const head = `<div class="pf-nav"><button class="chip" data-act="prev" aria-label="Quincena anterior">‹</button><div class="pf-per"><b>${perLabel(k)}</b><small>${cur ? 'Esta quincena' : '<a href="#" data-act="now">Ir a esta quincena</a>'}</small></div><button class="chip" data-act="next" aria-label="Quincena siguiente">›</button><button class="chip" data-act="hide" aria-pressed="${PF.hide}" aria-label="Ocultar montos" title="Ocultar montos">${PF.hide ? '🙈' : '👁'}</button></div>`;
+  const seg = `<div class="seg">${[['q', 'Quincena'], ['p', 'Pagos'], ['g', 'Gastos'], ['a', 'Ahorro']].map(([t, l]) => `<button data-act="tab" data-t="${t}" aria-pressed="${PF.tab === t}">${l}</button>`).join('')}</div>`;
+  let body = '';
+  if (PF.tab === 'q') {
+    const rem = pfRows('pfi_').filter(r => pfIn(r.date, k) && r.source === PF_SRC[1]).reduce((s, r) => s - num(r.amount), Object.values(S.withdrawals).filter(w => pfIn(w.date, k)).reduce((s, w) => s + num(w.amount), 0));
+    body = `<div class="fin-hero num"><small>Te queda libre ahora</small><div class="big">${c.libre < 0 ? '<span class="zero">' + pm(c.libre) + '</span>' : pm(c.libre)}</div>
+      <p>${c.pend > 0 ? (c.despues < 0 ? `Ojo: con los pagos que aún faltan (${pm(c.pend)}) te faltarían ${pm(-c.despues)}.` : `Y después de tus pagos pendientes (${pm(c.pend)}) te quedarían ${pm(c.despues)}.`) : (c.ingresos > 0 ? 'No tienes pagos pendientes en esta quincena.' : 'Anota tu ingreso de esta quincena para empezar.')}</p></div>
+      ${c.limite > 0 ? `<div class="bucket num" style="margin-top:10px"><div class="top"><b>Tu límite de gasto</b><span>${pm(c.wl)} por semana</span></div><div class="meter"><i class="${c.usado + c.pend > c.limite ? 'over' : ''}" style="width:${Math.min(100, Math.round((c.usado + c.pend) / c.limite * 100))}%"></i></div><div class="nums"><div>Límite<b>${pm(c.limite)}</b></div><div>Gastado + pagos<b>${pm(c.usado + c.pend)}</b></div><div>${c.usado + c.pend > c.limite ? 'Te pasaste' : 'Te queda'}<b>${pm(Math.abs(c.limite - c.usado - c.pend))}</b></div></div>${c.usado + c.pend > c.limite ? `<p class="why" style="color:var(--out);font-weight:600">Llevas ${pm(c.usado + c.pend - c.limite)} de más en esta quincena. Está bien si lo necesitabas: así sabes cuánto fue.</p>` : (c.ingresos > c.limite ? `<p class="why">Si te quedas dentro de tu límite, puedes ahorrar hasta ${pm(c.ingresos - c.limite)} esta quincena.</p>` : '')}
+        ${(() => { const [y, m] = k.split('-'), a1 = pfCalc(y + '-' + m + '-1'), a2 = pfCalc(y + '-' + m + '-2'), lim = a1.limite + a2.limite, us = a1.usado + a1.pend + a2.usado + a2.pend; return us > 0 ? `<p class="why">En el mes: ${us > lim ? `llevas <b>${pm(us - lim)} de más</b> sobre tu límite de ${pm(lim)}` : `vas <b>${pm(lim - us)} por debajo</b> de tu límite de ${pm(lim)}`}.</p>` : ''; })()}</div>` : ''}
+      <div class="kv num" style="margin-top:10px"><div><span>Ingresos</span><span>${pm(c.ingresos)}</span></div><div><span>Pagos hechos</span><span>${pm(c.hechos)}</span></div><div><span>Gastos</span><span>${pm(c.gastos)}</span></div><div><span>Ahorro</span><span>${pm(c.ahorro)}</span></div><div><span>Pagos por hacer</span><span>${pm(c.pend)}</span></div><div class="strong"><span>Libre después de tus pagos</span><span>${pm(c.despues)}</span></div></div>
+      ${c.vSaldo !== 0 || c.vInc.length ? `<div class="kv num" style="margin-top:10px"><div class="strong"><span>Saldo de vales de despensa</span><span>${pm(c.vSaldo)}</span></div></div>` : ''}
+      <div class="bar w" style="margin-top:10px"><button class="btn primary" data-act="new" data-f="inc">+ Ingreso</button><button class="btn" data-act="new" data-f="exp">+ Gasto</button><button class="btn" data-act="cfg">Ajustes</button></div>
+      ${rem > 0.005 ? `<div class="bar w"><button class="btn" data-act="kut" data-amt="${rem}">Sumar lo que tomé de Kutelle (${pm(rem)})</button></div>` : ''}
+      <h3>Ingresos de esta quincena</h3>` + (c.inc.length || c.vInc.length ? `<div class="rows">${c.inc.concat(c.vInc).sort((x, y) => y.date.localeCompare(x.date)).map(r => `<button class="row" type="button" data-act="edit" data-f="inc" data-id="${esc(r.id)}"><div class="l"><b>${esc(r.source || 'Ingreso')}</b><small>${fmtDate(r.date)}${r.note ? ' · ' + esc(r.note) : ''}</small></div><div class="r"><b class="num">${pm(r.amount)}</b></div></button>`).join('')}</div>` : '<div class="empty">Aún no anotas ingresos en esta quincena.</div>');
+  } else if (PF.tab === 'p') {
+    const all = pfRows('pfp_').filter(p => p.active !== false); const dueIds = new Set(c.due.map(x => x.p.id));
+    const rowOf = (p, x) => { const paid = x && x.paid, ds = x && x.date ? fmtDate(x.date) : ''; return `<div class="row" data-act="edit" data-f="pay" data-id="${esc(p.id)}"><div class="l"><b>${esc(p.name)}</b><small>${p.freq === 'quincenal' ? 'Cada quincena' : p.freq === 'unico' ? 'Una sola vez' : 'Día ' + (num(p.day) || 1) + ' de cada mes'}${x ? ' · toca ' + ds : ' · no toca esta quincena'}</small></div><div class="r"><b class="num">${pm(p.amount)}</b>${x ? `<button type="button" class="chip w" data-act="pay" data-id="${esc(p.id)}" aria-pressed="${!!paid}">${paid ? 'Pagado ✓' : 'Marcar pagado'}</button>` : ''}</div></div>`; };
+    const mine = all.filter(p => dueIds.has(p.id)).map(p => rowOf(p, c.due.find(x => x.p.id === p.id)));
+    const other = all.filter(p => !dueIds.has(p.id)).map(p => rowOf(p, null));
+    body = `<div class="bar w"><button class="btn primary" data-act="new" data-f="pay">+ Nuevo pago fijo</button></div>
+      <div class="kv num"><div><span>Pagado</span><span>${pm(c.hechos)}</span></div><div class="strong"><span>Por pagar</span><span>${pm(c.pend)}</span></div></div>
+      <h3>Esta quincena</h3>${mine.length ? `<div class="rows">${mine.join('')}</div>` : '<div class="empty">No tienes pagos que toquen en esta quincena.</div>'}
+      ${other.length ? `<h3>Otros pagos</h3><div class="rows">${other.join('')}</div>` : ''}
+      ${!all.length ? '<p class="hint">Agrega tu renta, tarjetas, servicios, suscripciones… y te avisa cuáles tocan cada quincena.</p>' : ''}`;
+  } else if (PF.tab === 'g') {
+    const st = pfSettings(); const by = {}; c.exp.forEach(r => { by[r.cat || 'Otros'] = (by[r.cat || 'Otros'] || 0) + num(r.amount); });
+    const cats = [...new Set([...PF_CATS, ...Object.keys(by)])].filter(x => by[x] || num(st.budgets[x]) > 0);
+    body = `<div class="bar w"><button class="btn primary" data-act="new" data-f="exp">+ Nuevo gasto</button><button class="btn" data-act="cfg">Presupuestos</button></div>
+      <div class="kv num"><div class="strong"><span>Gastado en la quincena</span><span>${pm(c.gastos)}</span></div></div>
+      ${cats.length ? '<h3>Por categoría</h3>' + cats.map(x => { const sp = by[x] || 0, bu = num(st.budgets[x]); const p = bu > 0 ? Math.min(100, Math.round(sp / bu * 100)) : 0; return `<div class="bucket num"><div class="top"><b>${esc(x)}</b><span>${bu > 0 ? 'presupuesto ' + pm(bu) : 'sin presupuesto'}</span></div>${bu > 0 ? `<div class="meter"><i class="${sp > bu ? 'over' : ''}" style="width:${p}%"></i></div>` : ''}<div class="nums"><div>Gastado<b>${pm(sp)}</b></div>${bu > 0 ? `<div>${sp > bu ? 'Te pasaste' : 'Te queda'}<b>${pm(Math.abs(bu - sp))}</b></div>` : '<div></div>'}<div></div></div></div>`; }).join('') : ''}
+      <h3>Gastos de esta quincena</h3>` + (c.exp.length ? `<div class="rows">${c.exp.sort((x, y) => y.date.localeCompare(x.date) || num(y.createdAt) - num(x.createdAt)).map(r => `<button class="row" type="button" data-act="edit" data-f="exp" data-id="${esc(r.id)}"><div class="l"><b>${esc(r.note || r.cat || 'Gasto')}</b><small>${fmtDate(r.date)} · ${esc(r.cat || 'Otros')}</small></div><div class="r"><b class="num">${pm(r.amount)}</b></div></button>`).join('')}</div>` : '<div class="empty">Aún no anotas gastos en esta quincena.</div>');
+  } else {
+    const st = pfSettings(), goals = pfRows('pfm_'), deps = pfRows('pfa_'), sug = Math.round(c.ingresos * st.savePct) / 100;
+    body = `<div class="bar w"><button class="btn primary" data-act="new" data-f="goal">+ Nueva meta</button><button class="btn" data-act="cfg">Ajustes</button></div>
+      <div class="kv num"><div><span>Ahorrado esta quincena</span><span>${pm(c.ahorro)}</span></div><div><span>Te sugiero apartar (${st.savePct}% de tus ingresos)</span><span>${pm(sug)}</span></div></div>
+      <p class="hint">Aparta primero para ti, antes de gastar: así el ahorro sí sucede.</p><h3>Mis metas</h3>` +
+      (goals.length ? goals.map(g => { const sv = deps.filter(d => d.goal === g.id).reduce((s, d) => s + num(d.amount), 0), t = num(g.target), p = t > 0 ? Math.min(100, Math.max(0, Math.round(sv / t * 100))) : 0; return `<div class="bucket num"><div class="top"><b>${esc(g.name)}</b><span>${t > 0 ? 'meta ' + pm(t) : 'sin meta de monto'}</span></div>${t > 0 ? `<div class="meter"><i style="width:${p}%"></i></div>` : ''}<div class="nums"><div>Llevas<b>${pm(sv)}</b></div><div>${t > 0 ? (sv >= t ? '¡Meta lograda!' : 'Te falta') : ''}<b>${t > 0 && sv < t ? pm(t - sv) : ''}</b></div><div class="w"><button class="chip" data-act="dep" data-id="${esc(g.id)}">Ahorrar</button> <button class="chip" data-act="edit" data-f="goal" data-id="${esc(g.id)}">Editar</button></div></div></div>`; }).join('') : '<div class="empty">Crea tu primera meta: fondo de emergencia, un viaje, lo que quieras lograr.</div>') +
+      (c.dep.length ? `<h3>Ahorros de esta quincena</h3><div class="rows">${c.dep.sort((x, y) => y.date.localeCompare(x.date)).map(r => `<button class="row" type="button" data-act="edit" data-f="dep" data-id="${esc(r.id)}"><div class="l"><b>${esc((goals.find(g => g.id === r.goal) || {}).name || 'Ahorro')}</b><small>${fmtDate(r.date)}${r.note ? ' · ' + esc(r.note) : ''}</small></div><div class="r"><b class="num">${pm(r.amount)}</b></div></button>`).join('')}</div>` : '');
+  }
+  $('#perBody').innerHTML = head + seg + body;
+}
+const PF_FORMS = {
+  inc: { title: 'Ingreso', pre: 'pfi_', kind: 'pfi', f: [['amount', 'Monto', 'num'], ['date', 'Fecha en que lo recibes', 'date'], ['source', '¿De dónde viene?', 'sel', PF_SRC], ['per', '¿Para qué quincena cuenta?', 'sel', []], ['note', 'Nota (opcional)', 'txt']] },
+  exp: { title: 'Gasto', pre: 'pfg_', kind: 'pfg', f: [['amount', 'Monto', 'num'], ['date', 'Fecha', 'date'], ['cat', 'Categoría', 'sel', PF_CATS], ['acct', 'Pagué con', 'sel', [['', 'Mi dinero'], ['vales', 'Vales de despensa']]], ['note', 'Nota (opcional)', 'txt']] },
+  pay: { title: 'Pago fijo', pre: 'pfp_', kind: 'pfp', f: [['name', '¿Qué pagas?', 'txt'], ['amount', 'Monto', 'num'], ['freq', '¿Cada cuándo?', 'sel', [['mensual', 'Una vez al mes'], ['quincenal', 'Cada quincena'], ['unico', 'Una sola vez']]], ['day', 'Día del mes en que se paga', 'int'], ['date', 'Fecha del pago', 'date']] },
+  goal: { title: 'Meta de ahorro', pre: 'pfm_', kind: 'pfm', f: [['name', 'Nombre de la meta', 'txt'], ['target', 'Monto que quieres juntar (opcional)', 'num']] },
+  dep: { title: 'Ahorro', pre: 'pfa_', kind: 'pfa', f: [['goal', 'Para qué meta', 'sel', []], ['amount', 'Monto (usa − para sacar dinero)', 'num'], ['date', 'Fecha', 'date'], ['note', 'Nota (opcional)', 'txt']] }
+};
+let pfEdit = null; // { f, id }
+function pfFreqToggle() { if (!$('#pf_freq')) return; const v = $('#pf_freq').value; const d = $('#pf_day'), t = $('#pf_date'); if (d) d.closest('.pfw').hidden = v !== 'mensual'; if (t) t.closest('.pfw').hidden = v !== 'unico'; }
+function openPf(f, id, pre) {
+  const F = PF_FORMS[f], r = id ? S.config[id] : null; pfEdit = { f, id };
+  $('#pfTitle').textContent = (id ? 'Editar ' : 'Nuevo ') + F.title.toLowerCase();
+  const goals = pfRows('pfm_');
+  $('#pfFields').innerHTML = F.f.map(([n, l, t, o]) => {
+    const v = r ? r[n] : (pre && pre[n] != null ? pre[n] : (n === 'date' ? today() : (n === 'freq' ? 'mensual' : (n === 'source' ? PF_SRC[0] : (n === 'cat' ? PF_CATS[0] : '')))));
+    let inp;
+    if (t === 'sel') { const op = n === 'goal' ? goals.map(g => [g.id, g.name]) : n === 'per' ? [['', 'Según la fecha en que lo recibo'], [perShift(PF.per, -1), 'La anterior: ' + perLabel(perShift(PF.per, -1))], [PF.per, 'Esta: ' + perLabel(PF.per)], [perShift(PF.per, 1), 'La siguiente: ' + perLabel(perShift(PF.per, 1))]] : o.map(x => Array.isArray(x) ? x : [x, x]); inp = `<select class="field" id="pf_${n}">${op.map(([a, b]) => `<option value="${esc(a)}"${String(a) === String(v) ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>`; }
+    else if (t === 'num') inp = `<input class="field num" id="pf_${n}" type="number" step="0.01" inputmode="decimal" value="${esc(v ?? '')}">`;
+    else if (t === 'int') inp = `<input class="field num" id="pf_${n}" type="number" min="1" max="31" step="1" inputmode="numeric" value="${esc(v ?? '')}">`;
+    else if (t === 'date') inp = `<input class="field" id="pf_${n}" type="date" value="${esc(v ?? '')}">`;
+    else inp = `<input class="field" id="pf_${n}" maxlength="80" value="${esc(v ?? '')}">`;
+    return `<div class="pfw"><label class="lbl" for="pf_${n}">${l}</label>${inp}</div>`;
+  }).join('');
+  $('#pfDel').hidden = !id; pfFreqToggle(); $('#dPf').showModal();
+}
+$('#pfFields').addEventListener('change', e => { if (e.target.id === 'pf_freq') pfFreqToggle(); });
+$('#pfForm').onsubmit = async e => {
+  e.preventDefault(); const { f, id } = pfEdit, F = PF_FORMS[f]; const g = n => { const el = $('#pf_' + n); return el ? el.value.trim() : ''; };
+  const data = { kind: F.kind, createdAt: id ? (S.config[id]?.createdAt || Date.now()) : Date.now() };
+  for (const [n, , t] of F.f) { const el = $('#pf_' + n); if (!el || el.closest('.pfw').hidden) continue; data[n] = (t === 'num' || t === 'int') ? (g(n) === '' ? '' : num(g(n))) : g(n); }
+  if (f === 'goal') { if (!data.name) { toast('Ponle nombre a tu meta'); return; } }
+  else if (f === 'pay') { if (!data.name) { toast('Escribe qué pagas'); return; } if (data.amount === '' || data.amount === undefined) { toast('Escribe el monto'); return; } if (data.freq === 'unico' && !data.date) { toast('Pon la fecha del pago'); return; } data.active = true; data.from = id ? (S.config[id]?.from || today()) : today(); }
+  else { if (data.amount === '' || data.amount === undefined || data.amount === 0) { toast('Escribe el monto'); return; } if (f === 'dep' && !data.goal) { toast('Primero crea una meta'); return; } }
+  const nid = id || F.pre + store.newId();
+  try { await store.set('config', nid, data); S.config[nid] = data; $('#dPf').close(); renderAll(); toast('Guardado'); } catch { toast('No se pudo guardar'); }
+};
+$('#pfDel').onclick = async () => { const { id } = pfEdit; if (!id || !confirm('¿Eliminar este registro?')) return; try { await store.del('config', id); delete S.config[id]; $('#dPf').close(); renderAll(); } catch { toast('No se pudo eliminar'); } };
+function openPfCfg() {
+  const st = pfSettings();
+  $('#pfcFields').innerHTML = `<label class="lbl" for="pfc_limit">Tu límite de gasto por semana ($)</label><input class="field num" id="pfc_limit" type="number" min="0" step="1" inputmode="decimal" value="${st.weekLimit}"><p class="hint">Lo máximo que quieres usar en gastos y pagos. Se ajusta a los días de cada quincena. Pon 0 para quitarlo.</p>
+    <label class="lbl" for="pfc_save">Cuánto quieres ahorrar de cada ingreso (%)</label><input class="field num" id="pfc_save" type="number" min="0" max="100" step="1" inputmode="numeric" value="${st.savePct}">
+    <h3 style="margin-top:16px">Presupuesto por quincena</h3><p class="hint" style="margin-top:0">Lo máximo que quieres gastar en cada categoría. Déjalo vacío si no quieres presupuesto.</p>` +
+    PF_CATS.map((c, i) => `<label class="lbl" for="pfc_${i}">${esc(c)}</label><input class="field num" id="pfc_${i}" type="number" min="0" step="1" inputmode="decimal" value="${num(st.budgets[c]) > 0 ? num(st.budgets[c]) : ''}">`).join('');
+  $('#dPfc').showModal();
+}
+$('#pfcForm').onsubmit = async e => {
+  e.preventDefault(); const budgets = {}; PF_CATS.forEach((c, i) => { const v = num($('#pfc_' + i).value); if (v > 0) budgets[c] = v; });
+  const data = { kind: 'pfs', savePct: Math.min(100, Math.max(0, num($('#pfc_save').value))), weekLimit: Math.max(0, num($('#pfc_limit').value)), budgets };
+  try { await store.set('config', 'pf_settings', data); S.config.pf_settings = data; $('#dPfc').close(); renderAll(); toast('Guardado'); } catch { toast('No se pudo guardar'); }
+};
+$('#s-per').addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]'); if (!b) return; e.preventDefault(); const a = b.dataset.act;
+  if (a === 'prev') PF.per = perShift(PF.per, -1); else if (a === 'next') PF.per = perShift(PF.per, 1); else if (a === 'now') PF.per = perKey(today());
+  else if (a === 'hide') { PF.hide = !PF.hide; lsSet('pf-hide', PF.hide ? '1' : '0'); }
+  else if (a === 'tab') PF.tab = b.dataset.t;
+  else if (!canWrite) return;
+  else if (a === 'new') { if (b.dataset.f === 'dep' && !pfRows('pfm_').length) { toast('Primero crea una meta'); return; } openPf(b.dataset.f, null); return; }
+  else if (a === 'edit') { openPf(b.dataset.f, b.dataset.id); return; }
+  else if (a === 'dep') { openPf('dep', null, { goal: b.dataset.id, amount: Math.round(pfCalc(PF.per).ingresos * pfSettings().savePct) / 100 || '' }); return; }
+  else if (a === 'cfg') { openPfCfg(); return; }
+  else if (a === 'kut') { const d = { kind: 'pfi', amount: Math.round(num(b.dataset.amt) * 100) / 100, date: today() <= perRange(PF.per)[1] && today() >= perRange(PF.per)[0] ? today() : perRange(PF.per)[1], source: PF_SRC[1], note: 'Lo que tomé de Kutelle', createdAt: Date.now() }; const id = 'pfi_' + store.newId(); try { await store.set('config', id, d); S.config[id] = d; toast('Agregado'); } catch { toast('No se pudo guardar'); } }
+  else if (a === 'pay') {
+    const p = pfRows('pfp_').find(x => x.id === b.dataset.id); if (!p) return; const ex = pfRows('pfx_').find(x => x.pid === p.id && x.per === PF.per);
+    try {
+      if (ex) { if (!confirm('¿Quitar la marca de pagado?')) return; await store.del('config', ex.id); delete S.config[ex.id]; }
+      else { const id = 'pfx_' + store.newId(), d = { kind: 'pfx', pid: p.id, per: PF.per, amount: num(p.amount), name: p.name, date: today(), createdAt: Date.now() }; await store.set('config', id, d); S.config[id] = d; toast('Pago registrado'); }
+    } catch { toast('No se pudo guardar'); }
+  }
+  renderAll();
+});
 
 /* ---------------- Finances ---------------- */
 const FIN_DEFAULT = { mode: 'arranque', split: { reinv: 50, gastos: 20, ti: 20, ahorro: 10 }, start: '' };
