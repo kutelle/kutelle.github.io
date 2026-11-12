@@ -3334,7 +3334,7 @@ function renderPersonal() {
   if (!PF.per) PF.per = perKey(today());
   const k = PF.per, c = pfCalc(k), cur = k === perKey(today());
   const head = `<div class="pf-nav"><button class="chip" data-act="prev" aria-label="Quincena anterior">‹</button><div class="pf-per"><b>${perLabel(k)}</b><small>${cur ? 'Esta quincena' : '<a href="#" data-act="now">Ir a esta quincena</a>'}</small></div><button class="chip" data-act="next" aria-label="Quincena siguiente">›</button><button class="chip" data-act="hide" aria-pressed="${PF.hide}" aria-label="Ocultar montos" title="Ocultar montos">${PF.hide ? '🙈' : '👁'}</button></div>`;
-  const seg = `<div class="seg">${[['q', 'Quincena'], ['p', 'Pagos'], ['g', 'Gastos'], ['a', 'Ahorro']].map(([t, l]) => `<button data-act="tab" data-t="${t}" aria-pressed="${PF.tab === t}">${l}</button>`).join('')}</div>`;
+  const seg = `<div class="seg">${[['q', 'Quincena'], ['p', 'Pagos'], ['g', 'Gastos'], ['a', 'Ahorro'], ['c', 'Gráficas']].map(([t, l]) => `<button data-act="tab" data-t="${t}" aria-pressed="${PF.tab === t}">${l}</button>`).join('')}</div>`;
   let body = '';
   if (PF.tab === 'q') {
     const rem = pfRows('pfi_').filter(r => pfIn(r.date, k) && r.source === PF_SRC[1]).reduce((s, r) => s - num(r.amount), Object.values(S.withdrawals).filter(w => pfIn(w.date, k)).reduce((s, w) => s + num(w.amount), 0));
@@ -3364,6 +3364,8 @@ function renderPersonal() {
       <div class="kv num"><div class="strong"><span>Gastado en la quincena</span><span>${pm(c.gastos)}</span></div></div>
       ${cats.length ? '<h3>Por categoría</h3>' + cats.map(x => { const sp = by[x] || 0, bu = num(st.budgets[x]); const p = bu > 0 ? Math.min(100, Math.round(sp / bu * 100)) : 0; return `<div class="bucket num"><div class="top"><b>${esc(x)}</b><span>${bu > 0 ? 'presupuesto ' + pm(bu) : 'sin presupuesto'}</span></div>${bu > 0 ? `<div class="meter"><i class="${sp > bu ? 'over' : ''}" style="width:${p}%"></i></div>` : ''}<div class="nums"><div>Gastado<b>${pm(sp)}</b></div>${bu > 0 ? `<div>${sp > bu ? 'Te pasaste' : 'Te queda'}<b>${pm(Math.abs(bu - sp))}</b></div>` : '<div></div>'}<div></div></div></div>`; }).join('') : ''}
       <h3>Gastos de esta quincena</h3>` + (c.exp.length ? `<div class="rows">${c.exp.sort((x, y) => y.date.localeCompare(x.date) || num(y.createdAt) - num(x.createdAt)).map(r => `<button class="row" type="button" data-act="edit" data-f="exp" data-id="${esc(r.id)}"><div class="l"><b>${esc(r.note || r.cat || 'Gasto')}</b><small>${fmtDate(r.date)} · ${esc(r.cat || 'Otros')}</small></div><div class="r"><b class="num">${pm(r.amount)}</b></div></button>`).join('')}</div>` : '<div class="empty">Aún no anotas gastos en esta quincena.</div>');
+  } else if (PF.tab === 'c') {
+    body = PF.hide ? '<div class="empty"><b>Montos ocultos</b>Toca el ojito de arriba para ver tus gráficas.</div>' : pfCharts(k, c);
   } else {
     const st = pfSettings(), goals = pfRows('pfm_'), deps = pfRows('pfa_'), sug = Math.round(c.ingresos * st.savePct) / 100;
     body = `<div class="bar w"><button class="btn primary" data-act="new" data-f="goal">+ Nueva meta</button><button class="btn" data-act="cfg">Ajustes</button></div>
@@ -3373,6 +3375,22 @@ function renderPersonal() {
       (c.dep.length ? `<h3>Ahorros de esta quincena</h3><div class="rows">${c.dep.sort((x, y) => y.date.localeCompare(x.date)).map(r => `<button class="row" type="button" data-act="edit" data-f="dep" data-id="${esc(r.id)}"><div class="l"><b>${esc((goals.find(g => g.id === r.goal) || {}).name || 'Ahorro')}</b><small>${fmtDate(r.date)}${r.note ? ' · ' + esc(r.note) : ''}</small></div><div class="r"><b class="num">${pm(r.amount)}</b></div></button>`).join('')}</div>` : '');
   }
   $('#perBody').innerHTML = head + seg + body;
+}
+const shortPer = k => { const [y, m, h] = k.split('-').map(Number); const mes = new Date(y, m - 1, 1).toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''); return (h === 1 ? '1–15 ' : '16–' + pfLast(y, m) + ' ') + mes; };
+function pfCharts(k, c) {
+  const ks = [-5, -4, -3, -2, -1, 0].map(n => perShift(k, n)), d = ks.map(x => { const r = pfCalc(x); return { k: x, ing: r.ingresos, gas: r.gastos + r.hechos, aho: r.ahorro, lim: r.limite }; });
+  const mx = Math.max(1, ...d.flatMap(r => [r.ing, r.gas, r.aho, r.lim])), W = 360, H = 190, T = 12, B = 34, hh = H - T - B, gw = (W - 10) / d.length, bw = 13;
+  const y = v => T + hh - hh * v / mx; const col = ['var(--ok)', 'var(--out)', 'var(--accent)'];
+  const bars = d.map((r, i) => { const x0 = 5 + i * gw + (gw - (3 * bw + 4)) / 2; return [r.ing, r.gas, r.aho].map((v, j) => `<rect x="${(x0 + j * (bw + 2)).toFixed(1)}" y="${y(v).toFixed(1)}" width="${bw}" height="${Math.max(0, T + hh - y(v)).toFixed(1)}" rx="2" fill="${col[j]}"/>`).join('') +
+    (r.lim > 0 ? `<line x1="${(5 + i * gw + 3).toFixed(1)}" x2="${(5 + (i + 1) * gw - 3).toFixed(1)}" y1="${y(r.lim).toFixed(1)}" y2="${y(r.lim).toFixed(1)}" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="4 3"/>` : '') +
+    `<text x="${(5 + i * gw + gw / 2).toFixed(1)}" y="${H - 18}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${shortPer(r.k).split(' ')[0]}</text><text x="${(5 + i * gw + gw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${shortPer(r.k).split(' ')[1]}</text>`; }).join('');
+  const by = {}; c.exp.forEach(r => { by[r.cat || 'Otros'] = (by[r.cat || 'Otros'] || 0) + num(r.amount); });
+  const cats = Object.entries(by).sort((a, b) => b[1] - a[1]), tot = cats.reduce((a, [, v]) => a + v, 0), cm = Math.max(1, ...cats.map(x => x[1]));
+  return `<h3>Ingresos, gastos y ahorro por quincena</h3>
+    <div class="bucket"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ingresos, gastos y ahorro de las últimas 6 quincenas" style="width:100%;height:auto;display:block"><line x1="0" x2="${W}" y1="${T + hh}" y2="${T + hh}" stroke="var(--line)"/>${bars}</svg>
+    <p class="why" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px"><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col[0]}"></i> Ingresos</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col[1]}"></i> Gastado (gastos + pagos)</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col[2]}"></i> Ahorro</span><span>┄ Tu límite</span></p></div>
+    <div class="tablewrap num"><table><tr><th>Quincena</th><th>Ingresos</th><th>Gastado</th><th>Ahorro</th></tr>${d.slice().reverse().map(r => `<tr><td>${shortPer(r.k)}</td><td>${money(r.ing)}</td><td>${money(r.gas)}</td><td>${money(r.aho)}</td></tr>`).join('')}</table></div>
+    <h3>En qué gastaste esta quincena</h3>` + (cats.length ? `<div class="bucket num">${cats.map(([n, v]) => `<div style="margin:6px 0"><div class="top" style="display:flex;justify-content:space-between;gap:10px"><b style="font-size:.92rem">${esc(n)}</b><span>${money(v)} · ${Math.round(v / tot * 100)}%</span></div><div class="meter" style="margin:4px 0"><i style="width:${Math.round(v / cm * 100)}%"></i></div></div>`).join('')}</div>` : '<div class="empty">Cuando anotes gastos, aquí ves en qué se va tu dinero.</div>');
 }
 const PF_FORMS = {
   inc: { title: 'Ingreso', pre: 'pfi_', kind: 'pfi', f: [['amount', 'Monto', 'num'], ['date', 'Fecha en que lo recibes', 'date'], ['source', '¿De dónde viene?', 'sel', PF_SRC], ['per', '¿Para qué quincena cuenta?', 'sel', []], ['note', 'Nota (opcional)', 'txt']] },
