@@ -112,6 +112,7 @@ textarea.field{resize:vertical;min-height:90px}
 .seg button{border:0;background:transparent;padding:10px 4px;font-weight:600;font-size:.9rem;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 /* nav */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}.cal .h{text-align:center;font-size:.72rem;color:var(--muted);font-weight:700}.cal button{min-height:54px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 1px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;font-size:.82rem;cursor:pointer}.cal button.today{border-color:var(--ink);border-width:2px}.cal button.sel{background:var(--ink);color:var(--bg)}.cal .amt{font-size:.66rem;font-weight:800}.cal .amt.pend{color:var(--out)}.cal .amt.ok{color:var(--ok)}.cal button.sel .amt{color:var(--bg)}i.inc{font-style:normal;color:var(--ok);font-weight:800;font-size:.7rem}#s-per .seg button{font-size:.72rem;padding:10px 0}.row.pfr{flex-wrap:wrap}.pfr .l{flex:1 1 50%}.pfr .cr{flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap}.pfr .cr .chip{margin-top:0}
 .pf-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px}.pf-per{flex:1;text-align:center;line-height:1.25}.pf-per b{display:block}.pf-per small{color:var(--muted)}.pf-nav .chip{font-size:1.05rem;min-width:40px}.row .r .chip{margin-top:5px}.bucket .nums .w{text-align:right}.bucket .nums .chip{font-size:.8rem;padding:5px 10px}
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1.5px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tabs div{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(8,1fr)}
@@ -1181,7 +1182,7 @@ $('#gMsgOut').onclick = logout;
 $('#logoutBtn').onclick = () => { if (confirm('¿Cerrar sesión en este dispositivo?')) logout(); };
 
 function supabaseStore(sb) {
-  const cache = {}; COLS.forEach(c => cache[c] = {}); const cbs = {};
+  const cache = {}; COLS.forEach(c => cache[c] = {}); const cbs = {}; let ready = false;
   const emit = col => (cbs[col] || []).forEach(f => f({ ...cache[col] }));
   async function loadAll() {
     const fresh = {}; COLS.forEach(c => fresh[c] = {});
@@ -1191,7 +1192,8 @@ function supabaseStore(sb) {
       data.forEach(r => { (fresh[r.col] = fresh[r.col] || {})[r.id] = r.data; });
       if (data.length < 1000) break;
     }
-    COLS.forEach(c => { cache[c] = fresh[c] || {}; emit(c); });
+    COLS.forEach(c => { cache[c] = fresh[c] || {}; });
+    ready = true; COLS.forEach(c => emit(c));
     $('#sync').textContent = 'Sincronizado';
   }
   loadAll().catch(() => { $('#sync').textContent = 'Sin conexión'; });
@@ -1203,7 +1205,7 @@ function supabaseStore(sb) {
   }).subscribe();
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadAll().catch(() => {}); });
   return {
-    kind: 'cloud', assets: { upload: blob => uploadTo('fotos', blob) },
+    kind: 'cloud', get ready() { return ready; }, assets: { upload: blob => uploadTo('fotos', blob) },
     watch(col, cb) { (cbs[col] = cbs[col] || []).push(cb); cb({ ...cache[col] }); },
     async get(col, id) { const { data, error } = await sb.from('docs').select('data').eq('col', col).eq('id', id).maybeSingle(); if (error) throw error; return data ? JSON.parse(JSON.stringify(data.data)) : null; },
     async set(col, id, data) { const { error } = await sb.from('docs').upsert({ col, id, data, updated_at: new Date().toISOString() }); if (error) throw error; cache[col][id] = data; emit(col); },
@@ -1371,8 +1373,26 @@ function nextSaleNo() { let m = 0; for (const r of Object.values(S.sales)) { con
 
 let raf = 0;
 function schedule() { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { derive(); renderAll(); }); }
+/* Showroom: marca en cada producto si está en exhibición, para que el catálogo público lo muestre (se actualiza solo) */
+let shTimer = null, shBusy = false;
+function scheduleShowroomSync() {
+  if (!canWrite || !store || store.ready === false) return;
+  clearTimeout(shTimer); shTimer = setTimeout(syncShowroom, 2500);
+}
+async function syncShowroom() {
+  if (shBusy || !canWrite || !store || store.ready === false) return; shBusy = true;
+  try {
+    const want = new Set(salonStock().map(x => x.sku));
+    for (const [id, p] of Object.entries(S.products)) {
+      if (!p || !p.sku) continue;
+      const w = want.has(p.sku);
+      if (!!p.salon !== w) await store.set('products', id, { ...p, salon: w });
+    }
+  } catch (e) { console.error(e); } finally { shBusy = false; }
+}
 function renderAll() {
   fillDatalists();
+  scheduleShowroomSync();
   if (section === 'inv') renderInv();
   if (section === 'ven') { if (venTab === 'sales') renderSales(); else if (venTab === 'ship') renderShips(); else if (venTab === 'salon') renderSalon(); else renderRets(); }
   if (section === 'com') renderPurchases();
@@ -2062,7 +2082,7 @@ function salonCommission() {
 }
 function renderSalon() {
   const here = salonStock(), units = here.reduce((s, x) => s + x.qty, 0), c = salonCommission();
-  $('#salonStats').textContent = `${units} ${units === 1 ? 'pieza' : 'piezas'} en el salón. Por cada venta ahí se aparta ${salonRate()}% de tu ganancia para la chica del salón y ${salonRent()}% para la renta del espacio.`;
+  $('#salonStats').textContent = `${units} ${units === 1 ? 'pieza' : 'piezas'} en el salón. Por cada venta ahí se aparta ${salonRate()}% de tu ganancia para la chica del salón y ${salonRent()}% para la renta del espacio. El catálogo muestra estas prendas en “En showroom” y se actualiza solo cuando las dejas, las recoges o se venden.`;
   $('#salonList').innerHTML = here.length ? here.map(x => `<button class="row" type="button" data-sku="${esc(x.sku)}">
     <div class="l"><b>${esc(titleOf(x.p))}</b><small>${esc(subOf(x.p))}</small></div>
     <div class="r"><b class="num">× ${x.qty}</b><small>${money(x.p.price)}</small></div></button>`).join('')
@@ -3304,14 +3324,19 @@ const perRange = k => { const [y, m, h] = k.split('-').map(Number); return h ===
 const perShift = (k, n) => { const [y, m, h] = k.split('-').map(Number); const idx = (y * 12 + (m - 1)) * 2 + (h - 1) + n; const mm = Math.floor(idx / 2); return Math.floor(mm / 12) + '-' + pad2(mm % 12 + 1) + '-' + (idx % 2 + 1); };
 const perLabel = k => { const [y, m, h] = k.split('-').map(Number); const mes = new Date(y, m - 1, 1).toLocaleDateString('es-MX', { month: 'long' }); return h === 1 ? `1 al 15 de ${mes} ${y}` : `16 al ${pfLast(y, m)} de ${mes} ${y}`; };
 const pfIn = (date, k) => { const [a, b] = perRange(k); return String(date) >= a && String(date) <= b; };
-function pfDue(p, k) {
-  if (p.active === false) return null;
-  if (p.from && k < perKey(p.from)) return null;
+const isoOf = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+function pfDates(p, k) {
+  const r = pfDates0(p, k); return p.from && p.freq !== 'unico' ? r.filter(d => d >= p.from) : r;
+}
+function pfDates0(p, k) {
+  if (p.active === false) return [];
+  if (p.from && k < perKey(p.from)) return [];
   const [y, m] = k.split('-').map(Number), [a, b] = perRange(k);
-  if (p.freq === 'quincenal') return b;
-  if (p.freq === 'unico') return p.date && p.date >= a && p.date <= b ? p.date : null;
+  if (p.freq === 'quincenal') return [b];
+  if (p.freq === 'unico') return p.date && p.date >= a && p.date <= b ? [p.date] : [];
+  if (p.freq === 'semanal') { const ds = []; for (const d = new Date(a + 'T00:00:00'); isoOf(d) <= b; d.setDate(d.getDate() + 1)) if (d.getDay() === num(p.wd)) ds.push(isoOf(d)); return ds; }
   const d = `${y}-${pad2(m)}-${pad2(Math.min(Math.max(1, num(p.day) || 1), pfLast(y, m)))}`;
-  return d >= a && d <= b ? d : null;
+  return d >= a && d <= b ? [d] : [];
 }
 function pfCalc(k) {
   const [a, b] = perRange(k), within = r => r.date >= a && r.date <= b;
@@ -3321,20 +3346,61 @@ function pfCalc(k) {
   const vSaldo = incAll.filter(pfV).reduce((s, r) => s + num(r.amount), 0) - expAll.filter(pfV).reduce((s, r) => s + num(r.amount), 0);
   const vInc = incAll.filter(r => pfV(r) && (r.per ? r.per === k : within(r)));
   const paidDocs = pfRows('pfx_').filter(x => x.per === k), pays = pfRows('pfp_');
-  const due = pays.map(p => ({ p, date: pfDue(p, k), paid: paidDocs.find(x => x.pid === p.id) })).filter(x => x.date || x.paid);
+  const ovs = pfRows('pfo_'), due = [];
+  pays.filter(p => p.active !== false).forEach(p => {
+    pfDates(p, k).forEach(d => { if (!ovs.some(o => o.pid === p.id && o.from === d)) due.push({ p, date: d, orig: d }); });
+    ovs.filter(o => o.pid === p.id && o.date >= a && o.date <= b).forEach(o => due.push({ p, date: o.date, orig: o.from, moved: true, oid: o.id }));
+  });
+  due.forEach(x => { x.k = k; x.paid = paidDocs.find(y => y.pid === p_id(x) && (y.d ? y.d === x.orig : true)); });
+  due.sort((u, v) => u.date.localeCompare(v.date));
   const ingresos = sum(inc, r => num(r.amount)), gastos = sum(exp, r => num(r.amount)), ahorro = sum(dep, r => num(r.amount));
-  const hechos = sum(paidDocs, r => num(r.amount)), pend = sum(due.filter(x => !x.paid), x => num(x.p.amount));
+  const hechos = sum(paidDocs, r => num(r.amount)), pend = sum(due.filter(x => !x.paid), x => num(x.p.amount)), planned = sum(due, x => num(x.p.amount));
   const libre = ingresos - hechos - gastos - ahorro;
   const dias = Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 864e5) + 1, wl = pfSettings().weekLimit;
-  const limite = Math.round(wl * dias / 7), usado = gastos + hechos;
-  return { a, b, inc, exp, dep, due, ingresos, gastos, ahorro, hechos, pend, libre, despues: libre - pend, vSaldo, vInc, limite, usado, wl };
+  const limite = Math.round(wl * 2), usado = gastos + hechos;
+  return { a, b, inc, exp, dep, due, ingresos, gastos, ahorro, hechos, pend, libre, despues: libre - pend, vSaldo, vInc, limite, usado, wl, planned, dias };
 }
+const p_id = x => x.p.id;
 const pfSettings = () => { const s = S.config.pf_settings || {}; return { savePct: s.savePct == null ? 10 : num(s.savePct), weekLimit: s.weekLimit == null ? 2800 : num(s.weekLimit), budgets: s.budgets || {} }; };
+const WD = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+PF.month = null; PF.day = null;
+const monthLabel = ym => { const [y, m] = ym.split('-').map(Number); const t = new Date(y, m - 1, 1).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }); return t.charAt(0).toUpperCase() + t.slice(1); };
+const monthShift = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); return d.getFullYear() + '-' + pad2(d.getMonth() + 1); };
+const shortMoney = v => PF.hide ? '•' : (v >= 1000 ? '$' + (Math.round(v / 100) / 10).toString().replace(/\.0$/, '') + 'k' : '$' + Math.round(v));
+function pfRow(x) {
+  const p = x.p, paid = x.paid;
+  return `<div class="row pfr" data-act="edit" data-f="pay" data-id="${esc(p.id)}"><div class="l"><b>${esc(p.name)}</b><small>${paid ? 'Pagado ✓ · ' : ''}${fmtShort(x.date)}${x.moved ? ' · cambiada (era ' + fmtShort(x.orig) + ')' : ''}</small></div><div class="r"><b class="num">${pm(p.amount)}</b></div><div class="cr w">
+    <button type="button" class="chip w" data-act="pay" data-id="${esc(p.id)}" data-k="${x.k}" data-d="${x.orig}" aria-pressed="${!!paid}">${paid ? 'Pagado ✓' : 'Marcar pagado'}</button>
+    ${paid ? '' : `<button type="button" class="chip w" data-act="resch" data-id="${esc(p.id)}" data-d="${x.orig}">Cambiar fecha</button>`}${x.moved && !paid ? `<button type="button" class="chip w" data-act="unmove" data-oid="${esc(x.oid)}">Regresar a su fecha</button>` : ''}</div></div>`;
+}
+function pfMonth() {
+  if (!PF.month) PF.month = today().slice(0, 7);
+  const ym = PF.month, [y, m] = ym.split('-').map(Number), k1 = ym + '-1', k2 = ym + '-2', c1 = pfCalc(k1), c2 = pfCalc(k2);
+  const items = c1.due.concat(c2.due), byDay = {}; items.forEach(x => { (byDay[x.date] = byDay[x.date] || []).push(x); });
+  const incs = {}; pfRows('pfi_').forEach(r => { if (!pfV(r)) incs[r.date] = (incs[r.date] || 0) + num(r.amount); });
+  const first = new Date(y, m - 1, 1), off = (first.getDay() + 6) % 7, n = pfLast(y, m), td = today();
+  let cells = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(h => `<div class="h">${h}</div>`).join('') + '<div></div>'.repeat(off);
+  for (let d = 1; d <= n; d++) {
+    const iso = `${ym}-${pad2(d)}`, its = byDay[iso] || [], tot = its.reduce((s0, x) => s0 + num(x.p.amount), 0), allPaid = its.length && its.every(x => x.paid);
+    cells += `<button type="button" data-act="day" data-d="${iso}" class="${iso === td ? 'today ' : ''}${PF.day === iso ? 'sel' : ''}"><span>${d}${incs[iso] ? ' <i class="inc">＄</i>' : ''}</span>${its.length ? `<span class="amt ${allPaid ? 'ok' : 'pend'}">${shortMoney(tot)}</span>` : ''}</button>`;
+  }
+  const plan = (c, k) => { const free = c.limite - c.planned, perDay = Math.round(free / c.dias); const pc = c.limite > 0 ? Math.min(100, Math.round(c.planned / c.limite * 100)) : 0;
+    return `<div class="bucket num"><div class="top"><b>${perLabel(k)}</b><span>límite ${pm(c.limite)}</span></div><div class="meter"><i class="${free < 0 ? 'over' : ''}" style="width:${pc}%"></i></div>
+      <div class="nums"><div>Pagos planeados<b>${pm(c.planned)}</b></div><div>${free < 0 ? 'Te pasas por' : 'Para el día a día'}<b>${pm(Math.abs(free))}</b></div><div>${free < 0 ? '' : 'Más o menos al día'}<b>${free < 0 ? '' : pm(perDay)}</b></div></div>
+      ${free < 0 ? '<p class="why" style="color:var(--out);font-weight:600">Se pasan tus pagos del límite: cambia la fecha de uno para pasarlo a la otra quincena.</p>' : ''}</div>`; };
+  const sel = PF.day && PF.day.startsWith(ym) ? PF.day : null, selIts = sel ? (byDay[sel] || []) : [];
+  const list = items.slice().sort((u, v) => u.date.localeCompare(v.date));
+  return `<div class="cal">${cells}</div><p class="hint" style="margin:6px 2px 10px"><i class="inc">＄</i> = día en que recibiste dinero · <span style="color:var(--out);font-weight:700">rojo</span> = por pagar · <span style="color:var(--ok);font-weight:700">verde</span> = pagado</p>
+    ${sel ? `<h3>${WD[new Date(sel + 'T00:00:00').getDay()]} ${new Date(sel + 'T00:00:00').getDate()}</h3>${selIts.length ? `<div class="rows">${selIts.map(pfRow).join('')}</div>` : '<div class="empty">No tienes pagos ese día.</div>'}<div class="bar w" style="margin-top:8px"><button class="btn" data-act="newday" data-d="${sel}">+ Pago ese día</button></div>` : '<p class="hint">Toca un día para ver sus pagos o agregar uno.</p>'}
+    <h3>Cómo se reparte tu dinero este mes</h3>${plan(c1, k1)}${plan(c2, k2)}
+    <h3>Pagos del mes</h3>${list.length ? `<div class="rows">${list.map(pfRow).join('')}</div>` : '<div class="empty">Agrega tus pagos fijos en la pestaña Pagos y aquí los ves en el calendario.</div>'}`;
+}
 function renderPersonal() {
   if (!PF.per) PF.per = perKey(today());
   const k = PF.per, c = pfCalc(k), cur = k === perKey(today());
   const head = `<div class="pf-nav"><button class="chip" data-act="prev" aria-label="Quincena anterior">‹</button><div class="pf-per"><b>${perLabel(k)}</b><small>${cur ? 'Esta quincena' : '<a href="#" data-act="now">Ir a esta quincena</a>'}</small></div><button class="chip" data-act="next" aria-label="Quincena siguiente">›</button><button class="chip" data-act="hide" aria-pressed="${PF.hide}" aria-label="Ocultar montos" title="Ocultar montos">${PF.hide ? '🙈' : '👁'}</button></div>`;
-  const seg = `<div class="seg">${[['q', 'Quincena'], ['p', 'Pagos'], ['g', 'Gastos'], ['a', 'Ahorro'], ['c', 'Gráficas']].map(([t, l]) => `<button data-act="tab" data-t="${t}" aria-pressed="${PF.tab === t}">${l}</button>`).join('')}</div>`;
+  const seg = `<div class="seg">${[['q', 'Quincena'], ['m', 'Mes'], ['p', 'Pagos'], ['g', 'Gastos'], ['a', 'Ahorro'], ['c', 'Gráficas']].map(([t, l]) => `<button data-act="tab" data-t="${t}" aria-pressed="${PF.tab === t}">${l}</button>`).join('')}</div>`;
+  const headM = `<div class="pf-nav"><button class="chip" data-act="mprev" aria-label="Mes anterior">‹</button><div class="pf-per"><b>${monthLabel(PF.month || today().slice(0, 7))}</b><small>${(PF.month || today().slice(0, 7)) === today().slice(0, 7) ? 'Este mes' : '<a href="#" data-act="mnow">Ir a este mes</a>'}</small></div><button class="chip" data-act="mnext" aria-label="Mes siguiente">›</button><button class="chip" data-act="hide" aria-pressed="${PF.hide}" aria-label="Ocultar montos">${PF.hide ? '🙈' : '👁'}</button></div>`;
   let body = '';
   if (PF.tab === 'q') {
     const rem = pfRows('pfi_').filter(r => pfIn(r.date, k) && r.source === PF_SRC[1]).reduce((s, r) => s - num(r.amount), Object.values(S.withdrawals).filter(w => pfIn(w.date, k)).reduce((s, w) => s + num(w.amount), 0));
@@ -3347,16 +3413,18 @@ function renderPersonal() {
       <div class="bar w" style="margin-top:10px"><button class="btn primary" data-act="new" data-f="inc">+ Ingreso</button><button class="btn" data-act="new" data-f="exp">+ Gasto</button><button class="btn" data-act="cfg">Ajustes</button></div>
       ${rem > 0.005 ? `<div class="bar w"><button class="btn" data-act="kut" data-amt="${rem}">Sumar lo que tomé de Kutelle (${pm(rem)})</button></div>` : ''}
       <h3>Ingresos de esta quincena</h3>` + (c.inc.length || c.vInc.length ? `<div class="rows">${c.inc.concat(c.vInc).sort((x, y) => y.date.localeCompare(x.date)).map(r => `<button class="row" type="button" data-act="edit" data-f="inc" data-id="${esc(r.id)}"><div class="l"><b>${esc(r.source || 'Ingreso')}</b><small>${fmtDate(r.date)}${r.note ? ' · ' + esc(r.note) : ''}</small></div><div class="r"><b class="num">${pm(r.amount)}</b></div></button>`).join('')}</div>` : '<div class="empty">Aún no anotas ingresos en esta quincena.</div>');
+  } else if (PF.tab === 'm') {
+    body = pfMonth();
   } else if (PF.tab === 'p') {
     const all = pfRows('pfp_').filter(p => p.active !== false); const dueIds = new Set(c.due.map(x => x.p.id));
-    const rowOf = (p, x) => { const paid = x && x.paid, ds = x && x.date ? fmtDate(x.date) : ''; return `<div class="row" data-act="edit" data-f="pay" data-id="${esc(p.id)}"><div class="l"><b>${esc(p.name)}</b><small>${p.freq === 'quincenal' ? 'Cada quincena' : p.freq === 'unico' ? 'Una sola vez' : 'Día ' + (num(p.day) || 1) + ' de cada mes'}${x ? ' · toca ' + ds : ' · no toca esta quincena'}</small></div><div class="r"><b class="num">${pm(p.amount)}</b>${x ? `<button type="button" class="chip w" data-act="pay" data-id="${esc(p.id)}" aria-pressed="${!!paid}">${paid ? 'Pagado ✓' : 'Marcar pagado'}</button>` : ''}</div></div>`; };
-    const mine = all.filter(p => dueIds.has(p.id)).map(p => rowOf(p, c.due.find(x => x.p.id === p.id)));
-    const other = all.filter(p => !dueIds.has(p.id)).map(p => rowOf(p, null));
+    const freqTxt = p => p.freq === 'quincenal' ? 'Cada quincena' : p.freq === 'unico' ? 'Una sola vez' : p.freq === 'semanal' ? 'Cada ' + WD[num(p.wd)].toLowerCase() : 'Día ' + (num(p.day) || 1) + ' de cada mes';
+    const other = all.filter(p => !dueIds.has(p.id)).map(p => `<div class="row" data-act="edit" data-f="pay" data-id="${esc(p.id)}"><div class="l"><b>${esc(p.name)}</b><small>${freqTxt(p)} · no toca esta quincena</small></div><div class="r"><b class="num">${pm(p.amount)}</b></div></div>`);
     body = `<div class="bar w"><button class="btn primary" data-act="new" data-f="pay">+ Nuevo pago fijo</button></div>
       <div class="kv num"><div><span>Pagado</span><span>${pm(c.hechos)}</span></div><div class="strong"><span>Por pagar</span><span>${pm(c.pend)}</span></div></div>
-      <h3>Esta quincena</h3>${mine.length ? `<div class="rows">${mine.join('')}</div>` : '<div class="empty">No tienes pagos que toquen en esta quincena.</div>'}
+      <h3>Esta quincena</h3>${c.due.length ? `<div class="rows">${c.due.map(pfRow).join('')}</div>` : '<div class="empty">No tienes pagos que toquen en esta quincena.</div>'}
+      <p class="hint">¿Te llega tarde el dinero? Toca “Cambiar fecha” en el pago para ponerlo cuando lo vas a pagar de verdad; si cae en la otra quincena, ahí se cuenta.</p>
       ${other.length ? `<h3>Otros pagos</h3><div class="rows">${other.join('')}</div>` : ''}
-      ${!all.length ? '<p class="hint">Agrega tu renta, tarjetas, servicios, suscripciones… y te avisa cuáles tocan cada quincena.</p>' : ''}`;
+      ${!all.length ? '<p class="hint">Agrega tu renta, tarjetas, servicios, la guardería… y te avisa cuáles tocan cada quincena.</p>' : ''}`;
   } else if (PF.tab === 'g') {
     const st = pfSettings(); const by = {}; c.exp.forEach(r => { by[r.cat || 'Otros'] = (by[r.cat || 'Otros'] || 0) + num(r.amount); });
     const cats = [...new Set([...PF_CATS, ...Object.keys(by)])].filter(x => by[x] || num(st.budgets[x]) > 0);
@@ -3374,7 +3442,7 @@ function renderPersonal() {
       (goals.length ? goals.map(g => { const sv = deps.filter(d => d.goal === g.id).reduce((s, d) => s + num(d.amount), 0), t = num(g.target), p = t > 0 ? Math.min(100, Math.max(0, Math.round(sv / t * 100))) : 0; return `<div class="bucket num"><div class="top"><b>${esc(g.name)}</b><span>${t > 0 ? 'meta ' + pm(t) : 'sin meta de monto'}</span></div>${t > 0 ? `<div class="meter"><i style="width:${p}%"></i></div>` : ''}<div class="nums"><div>Llevas<b>${pm(sv)}</b></div><div>${t > 0 ? (sv >= t ? '¡Meta lograda!' : 'Te falta') : ''}<b>${t > 0 && sv < t ? pm(t - sv) : ''}</b></div><div class="w"><button class="chip" data-act="dep" data-id="${esc(g.id)}">Ahorrar</button> <button class="chip" data-act="edit" data-f="goal" data-id="${esc(g.id)}">Editar</button></div></div></div>`; }).join('') : '<div class="empty">Crea tu primera meta: fondo de emergencia, un viaje, lo que quieras lograr.</div>') +
       (c.dep.length ? `<h3>Ahorros de esta quincena</h3><div class="rows">${c.dep.sort((x, y) => y.date.localeCompare(x.date)).map(r => `<button class="row" type="button" data-act="edit" data-f="dep" data-id="${esc(r.id)}"><div class="l"><b>${esc((goals.find(g => g.id === r.goal) || {}).name || 'Ahorro')}</b><small>${fmtDate(r.date)}${r.note ? ' · ' + esc(r.note) : ''}</small></div><div class="r"><b class="num">${pm(r.amount)}</b></div></button>`).join('')}</div>` : '');
   }
-  $('#perBody').innerHTML = head + seg + body;
+  $('#perBody').innerHTML = (PF.tab === 'm' ? headM : head) + seg + body;
 }
 const shortPer = k => { const [y, m, h] = k.split('-').map(Number); const mes = new Date(y, m - 1, 1).toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''); return (h === 1 ? '1–15 ' : '16–' + pfLast(y, m) + ' ') + mes; };
 function pfCharts(k, c) {
@@ -3395,15 +3463,16 @@ function pfCharts(k, c) {
 const PF_FORMS = {
   inc: { title: 'Ingreso', pre: 'pfi_', kind: 'pfi', f: [['amount', 'Monto', 'num'], ['date', 'Fecha en que lo recibes', 'date'], ['source', '¿De dónde viene?', 'sel', PF_SRC], ['per', '¿Para qué quincena cuenta?', 'sel', []], ['note', 'Nota (opcional)', 'txt']] },
   exp: { title: 'Gasto', pre: 'pfg_', kind: 'pfg', f: [['amount', 'Monto', 'num'], ['date', 'Fecha', 'date'], ['cat', 'Categoría', 'sel', PF_CATS], ['acct', 'Pagué con', 'sel', [['', 'Mi dinero'], ['vales', 'Vales de despensa']]], ['note', 'Nota (opcional)', 'txt']] },
-  pay: { title: 'Pago fijo', pre: 'pfp_', kind: 'pfp', f: [['name', '¿Qué pagas?', 'txt'], ['amount', 'Monto', 'num'], ['freq', '¿Cada cuándo?', 'sel', [['mensual', 'Una vez al mes'], ['quincenal', 'Cada quincena'], ['unico', 'Una sola vez']]], ['day', 'Día del mes en que se paga', 'int'], ['date', 'Fecha del pago', 'date']] },
+  pay: { title: 'Pago fijo', pre: 'pfp_', kind: 'pfp', f: [['name', '¿Qué pagas?', 'txt'], ['amount', 'Monto', 'num'], ['freq', '¿Cada cuándo?', 'sel', [['mensual', 'Una vez al mes'], ['semanal', 'Cada semana'], ['quincenal', 'Cada quincena'], ['unico', 'Una sola vez']]], ['day', 'Día del mes en que se paga', 'int'], ['wd', '¿Qué día de la semana?', 'sel', WD.map((d, i) => [String(i), d])], ['date', 'Fecha del pago', 'date']] },
+  resch: { title: 'Fecha de pago', pre: 'pfo_', kind: 'pfo', f: [['date', 'Nueva fecha de pago', 'date']] },
   goal: { title: 'Meta de ahorro', pre: 'pfm_', kind: 'pfm', f: [['name', 'Nombre de la meta', 'txt'], ['target', 'Monto que quieres juntar (opcional)', 'num']] },
   dep: { title: 'Ahorro', pre: 'pfa_', kind: 'pfa', f: [['goal', 'Para qué meta', 'sel', []], ['amount', 'Monto (usa − para sacar dinero)', 'num'], ['date', 'Fecha', 'date'], ['note', 'Nota (opcional)', 'txt']] }
 };
 let pfEdit = null; // { f, id }
-function pfFreqToggle() { if (!$('#pf_freq')) return; const v = $('#pf_freq').value; const d = $('#pf_day'), t = $('#pf_date'); if (d) d.closest('.pfw').hidden = v !== 'mensual'; if (t) t.closest('.pfw').hidden = v !== 'unico'; }
-function openPf(f, id, pre) {
-  const F = PF_FORMS[f], r = id ? S.config[id] : null; pfEdit = { f, id };
-  $('#pfTitle').textContent = (id ? 'Editar ' : 'Nuevo ') + F.title.toLowerCase();
+function pfFreqToggle() { if (!$('#pf_freq')) return; const v = $('#pf_freq').value; const d = $('#pf_day'), t = $('#pf_date'), w = $('#pf_wd'); if (d) d.closest('.pfw').hidden = v !== 'mensual'; if (t) t.closest('.pfw').hidden = v !== 'unico'; if (w) w.closest('.pfw').hidden = v !== 'semanal'; }
+function openPf(f, id, pre, extra) {
+  const F = PF_FORMS[f], r = id ? S.config[id] : null; pfEdit = { f, id, ...(extra || {}) };
+  $('#pfTitle').textContent = f === 'resch' ? 'Cambiar fecha de pago' : (id ? 'Editar ' : 'Nuevo ') + F.title.toLowerCase();
   const goals = pfRows('pfm_');
   $('#pfFields').innerHTML = F.f.map(([n, l, t, o]) => {
     const v = r ? r[n] : (pre && pre[n] != null ? pre[n] : (n === 'date' ? today() : (n === 'freq' ? 'mensual' : (n === 'source' ? PF_SRC[0] : (n === 'cat' ? PF_CATS[0] : '')))));
@@ -3420,6 +3489,15 @@ function openPf(f, id, pre) {
 $('#pfFields').addEventListener('change', e => { if (e.target.id === 'pf_freq') pfFreqToggle(); });
 $('#pfForm').onsubmit = async e => {
   e.preventDefault(); const { f, id } = pfEdit, F = PF_FORMS[f]; const g = n => { const el = $('#pf_' + n); return el ? el.value.trim() : ''; };
+  if (f === 'resch') {
+    const nd = g('date'); if (!nd) { toast('Elige la fecha'); return; }
+    try {
+      if (nd === pfEdit.from) { if (id) { await store.del('config', id); delete S.config[id]; } }
+      else { const nid = id || 'pfo_' + store.newId(), d0 = { kind: 'pfo', pid: pfEdit.pid, from: pfEdit.from, date: nd, createdAt: Date.now() }; await store.set('config', nid, d0); S.config[nid] = d0; }
+      $('#dPf').close(); renderAll(); toast('Fecha cambiada');
+    } catch { toast('No se pudo guardar'); }
+    return;
+  }
   const data = { kind: F.kind, createdAt: id ? (S.config[id]?.createdAt || Date.now()) : Date.now() };
   for (const [n, , t] of F.f) { const el = $('#pf_' + n); if (!el || el.closest('.pfw').hidden) continue; data[n] = (t === 'num' || t === 'int') ? (g(n) === '' ? '' : num(g(n))) : g(n); }
   if (f === 'goal') { if (!data.name) { toast('Ponle nombre a tu meta'); return; } }
@@ -3431,7 +3509,7 @@ $('#pfForm').onsubmit = async e => {
 $('#pfDel').onclick = async () => { const { id } = pfEdit; if (!id || !confirm('¿Eliminar este registro?')) return; try { await store.del('config', id); delete S.config[id]; $('#dPf').close(); renderAll(); } catch { toast('No se pudo eliminar'); } };
 function openPfCfg() {
   const st = pfSettings();
-  $('#pfcFields').innerHTML = `<label class="lbl" for="pfc_limit">Tu límite de gasto por semana ($)</label><input class="field num" id="pfc_limit" type="number" min="0" step="1" inputmode="decimal" value="${st.weekLimit}"><p class="hint">Lo máximo que quieres usar en gastos y pagos. Se ajusta a los días de cada quincena. Pon 0 para quitarlo.</p>
+  $('#pfcFields').innerHTML = `<label class="lbl" for="pfc_limit">Tu límite de gasto por semana ($)</label><input class="field num" id="pfc_limit" type="number" min="0" step="1" inputmode="decimal" value="${st.weekLimit}"><p class="hint">Lo máximo que quieres usar en gastos y pagos. Cada quincena cuenta como 2 semanas (con $2,800, tu límite es $5,600 por quincena). Pon 0 para quitarlo.</p>
     <label class="lbl" for="pfc_save">Cuánto quieres ahorrar de cada ingreso (%)</label><input class="field num" id="pfc_save" type="number" min="0" max="100" step="1" inputmode="numeric" value="${st.savePct}">
     <h3 style="margin-top:16px">Presupuesto por quincena</h3><p class="hint" style="margin-top:0">Lo máximo que quieres gastar en cada categoría. Déjalo vacío si no quieres presupuesto.</p>` +
     PF_CATS.map((c, i) => `<label class="lbl" for="pfc_${i}">${esc(c)}</label><input class="field num" id="pfc_${i}" type="number" min="0" step="1" inputmode="decimal" value="${num(st.budgets[c]) > 0 ? num(st.budgets[c]) : ''}">`).join('');
@@ -3447,17 +3525,24 @@ $('#s-per').addEventListener('click', async e => {
   if (a === 'prev') PF.per = perShift(PF.per, -1); else if (a === 'next') PF.per = perShift(PF.per, 1); else if (a === 'now') PF.per = perKey(today());
   else if (a === 'hide') { PF.hide = !PF.hide; lsSet('pf-hide', PF.hide ? '1' : '0'); }
   else if (a === 'tab') PF.tab = b.dataset.t;
+  else if (a === 'mprev') PF.month = monthShift(PF.month || today().slice(0, 7), -1);
+  else if (a === 'mnext') PF.month = monthShift(PF.month || today().slice(0, 7), 1);
+  else if (a === 'mnow') { PF.month = today().slice(0, 7); PF.day = null; }
+  else if (a === 'day') PF.day = PF.day === b.dataset.d ? null : b.dataset.d;
   else if (!canWrite) return;
+  else if (a === 'newday') { openPf('pay', null, { freq: 'unico', date: b.dataset.d }); return; }
+  else if (a === 'resch') { const ex = pfRows('pfo_').find(o => o.pid === b.dataset.id && o.from === b.dataset.d); openPf('resch', ex ? ex.id : null, ex ? null : { date: b.dataset.d }, { pid: b.dataset.id, from: b.dataset.d }); return; }
+  else if (a === 'unmove') { try { await store.del('config', b.dataset.oid); delete S.config[b.dataset.oid]; toast('Regresó a su fecha'); } catch { toast('No se pudo guardar'); } }
   else if (a === 'new') { if (b.dataset.f === 'dep' && !pfRows('pfm_').length) { toast('Primero crea una meta'); return; } openPf(b.dataset.f, null); return; }
   else if (a === 'edit') { openPf(b.dataset.f, b.dataset.id); return; }
   else if (a === 'dep') { openPf('dep', null, { goal: b.dataset.id, amount: Math.round(pfCalc(PF.per).ingresos * pfSettings().savePct) / 100 || '' }); return; }
   else if (a === 'cfg') { openPfCfg(); return; }
   else if (a === 'kut') { const d = { kind: 'pfi', amount: Math.round(num(b.dataset.amt) * 100) / 100, date: today() <= perRange(PF.per)[1] && today() >= perRange(PF.per)[0] ? today() : perRange(PF.per)[1], source: PF_SRC[1], note: 'Lo que tomé de Kutelle', createdAt: Date.now() }; const id = 'pfi_' + store.newId(); try { await store.set('config', id, d); S.config[id] = d; toast('Agregado'); } catch { toast('No se pudo guardar'); } }
   else if (a === 'pay') {
-    const p = pfRows('pfp_').find(x => x.id === b.dataset.id); if (!p) return; const ex = pfRows('pfx_').find(x => x.pid === p.id && x.per === PF.per);
+    const p = pfRows('pfp_').find(x => x.id === b.dataset.id); if (!p) return; const per = b.dataset.k || PF.per, dd = b.dataset.d || ''; const ex = pfRows('pfx_').find(x => x.pid === p.id && x.per === per && (x.d ? x.d === dd : true));
     try {
       if (ex) { if (!confirm('¿Quitar la marca de pagado?')) return; await store.del('config', ex.id); delete S.config[ex.id]; }
-      else { const id = 'pfx_' + store.newId(), d = { kind: 'pfx', pid: p.id, per: PF.per, amount: num(p.amount), name: p.name, date: today(), createdAt: Date.now() }; await store.set('config', id, d); S.config[id] = d; toast('Pago registrado'); }
+      else { const id = 'pfx_' + store.newId(), d = { kind: 'pfx', pid: p.id, per, d: dd, amount: num(p.amount), name: p.name, date: today(), createdAt: Date.now() }; await store.set('config', id, d); S.config[id] = d; toast('Pago registrado'); }
     } catch { toast('No se pudo guardar'); }
   }
   renderAll();

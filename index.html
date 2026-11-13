@@ -126,6 +126,14 @@ button.cta:disabled{background:var(--line);color:var(--muted);cursor:default;bor
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:.9rem;z-index:20;pointer-events:none}
 .how{display:inline-flex;align-items:center;gap:8px;margin-top:18px;border:0;background:var(--mauve);color:#fff;border-radius:999px;padding:10px 20px;font-size:.95rem;font-weight:500;cursor:pointer}
 .how svg{width:18px;height:18px}
+.shnote{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:var(--mauve-soft);color:var(--mauve);font-size:.92rem;font-weight:600}
+.shgo{display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:var(--mauve);color:#fff;border-radius:999px;padding:8px 16px;font-weight:600;font-size:.9rem}
+.shgo svg{width:16px;height:16px}
+.shaddr{margin:10px 0 0;padding:14px 16px;border-radius:12px;background:var(--mauve-soft);color:var(--ink);line-height:1.45}
+.shaddr b{display:block;color:var(--mauve);font-size:1.05rem}
+.shaddr .fl{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:999px;background:var(--mauve);color:#fff;font-size:.82rem;font-weight:600}
+a.cta svg,button.cta svg{width:18px;height:18px;vertical-align:-3px;margin-right:6px}
+.cta.alt{background:transparent;color:var(--mauve);border:1.5px solid var(--mauve);margin-top:10px}
 .hrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
 .hrow .how{margin-top:0}
 .polbtn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--mauve);background:rgba(255,255,255,.55);color:var(--mauve);border-radius:999px;padding:9px 20px;font-size:.95rem;font-weight:500;cursor:pointer}
@@ -186,6 +194,10 @@ button.cta:disabled{background:var(--line);color:var(--muted);cursor:default;bor
     <p class="note">La disponibilidad se confirma en cuanto recibimos tu lista. <button type="button" class="plink" id="hpol">Lee nuestras políticas</button></p>
     <button class="cta" id="hgo" type="button">Ver el catálogo</button>
   </div>
+</dialog>
+<dialog id="sdlg" aria-labelledby="sTitle">
+  <div class="dtop"><button class="close" id="sclose" aria-label="Cerrar">×</button></div>
+  <div class="lbody" id="sbody"></div>
 </dialog>
 <dialog id="pdlg" aria-labelledby="pTitle">
   <div class="dtop"><button class="close" id="pclose" aria-label="Cerrar">×</button></div>
@@ -293,12 +305,13 @@ let S = { name: 'Kutelle', whatsapp: '' }, products = [], allCats = [], current 
 
 function header(updatedAt) {
   const updated = updatedAt ? new Date(updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b></span></p>` + bfBanner() + `<div class="hrow"><button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button><button type="button" class="polbtn" id="polBtn">${ico('check')}Políticas</button></div>`;
+  $('#mast').innerHTML = `<p class="kicker">Catálogo</p><h1 class="logo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</h1><div class="rule"></div>` + (updated ? `<p class="updated">Disponibilidad al ${esc(updated)}</p>` : '') + `<p class="unique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.1 5.4L20 9.3l-4.4 3.9L17 19l-5-3-5 3 1.4-5.8L4 9.3l5.9-.9L12 3z"/></svg><span>Recuerda que todas nuestras prendas son <b>piezas únicas</b></span></p>` + bfBanner() + `<div class="hrow"><button type="button" class="how">${ico('hanger')}¿Cómo comprar?</button><button type="button" class="polbtn" id="polBtn">${ico('check')}Políticas</button>${SHOWROOM.on ? `<button type="button" class="polbtn" id="shBtn">${ico('pin')}Showroom</button>` : ''}</div>`;
   document.title = 'Catálogo ' + (S.name || 'Kutelle');
   $('#foot').innerHTML = `<b class="flogo" role="img" aria-label="${esc(S.name || 'Kutelle')}">${esc(S.name || 'Kutelle')}</b>` + (S.whatsapp ? 'Arma tu lista y envíanosla por WhatsApp o Instagram.<br>¡Gracias por elegirnos!' : 'Gracias por elegirnos.') + `<a class="ig" href="https://instagram.com/kutelle" target="_blank" rel="noopener">@kutelle</a><br><button type="button" class="plink" id="polFoot">Políticas de Kutelle</button>`;
 }
 function renderPills() {
-  $('#pills').innerHTML = [['all', 'Todo'], ...allCats.map(c => [c, c])].map(([v, l]) => `<button class="pill" data-c="${esc(v)}" aria-pressed="${current === v}">${esc(l)}</button>`).join('');
+  const sn = showItems().length;
+  $('#pills').innerHTML = [['all', 'Todo'], ...(sn ? [['__show', 'En showroom (' + sn + ')']] : []), ...allCats.map(c => [c, c])].map(([v, l]) => `<button class="pill" data-c="${esc(v)}" aria-pressed="${current === v}">${esc(l)}</button>`).join('');
 }
 function card(p) {
   const out = p.stock <= 0, img = (p.images || [])[0];
@@ -311,6 +324,11 @@ function card(p) {
 }
 const sortItems = a => a.slice().sort((x, y) => ((x.stock <= 0) - (y.stock <= 0)) || x.i - y.i);
 function renderMain() {
+  if (current === '__show') {
+    const it = sortItems(showItems());
+    $('#main').innerHTML = `<section><h2>En showroom</h2><p class="count">${it.length} ${it.length === 1 ? 'pieza' : 'piezas'} en exhibición en ${esc(SHOWROOM.lugar)}, ${esc(SHOWROOM.piso.toLowerCase())}</p><div class="shnote"><span>${esc(SHOWROOM.lugar)} · ${esc(SHOWROOM.piso)}</span><a class="shgo" href="${esc(mapsUrl())}" target="_blank" rel="noopener">${ico('pin')}Cómo llegar</a></div><div class="grid">${it.map(card).join('')}</div></section>`;
+    return;
+  }
   const list = current === 'all' ? allCats : [current];
   const html = list.map(c => {
     const items = sortItems(products.filter(p => (p.category || 'Otros') === c)); if (!items.length) return '';
@@ -325,7 +343,8 @@ function apply(data) {
   const cats = (data.categories || []).filter(c => products.some(p => (p.category || 'Otros') === c));
   const others = [...new Set(products.map(p => p.category || 'Otros'))].filter(c => !cats.includes(c));
   allCats = [...cats, ...others];
-  if (current !== 'all' && !allCats.includes(current)) current = 'all';
+  if (current !== 'all' && current !== '__show' && !allCats.includes(current)) current = 'all';
+  if (current === '__show' && !showItems().length) current = 'all';
   header(data.updatedAt); renderPills(); renderMain(); reconcile();
 }
 async function fetchCatalog(u, k) {
@@ -366,7 +385,7 @@ function openItem(p) {
   $('#gal').scrollLeft = 0;
   $('#dots').innerHTML = ims.length > 1 ? ims.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('') : '';
   $('#dName').textContent = p.name || p.sku; $('#dPrice').textContent = money(p.price);
-  $('#specs').innerHTML = [['Disponibilidad', `<span class="avail${out ? ' out' : ''}">${availText(p.stock)}</span>`], ['Talla', esc(sizeText(p) || '—')], ['Color', esc(p.color || '—')], ['SKU', esc(p.sku)]].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  $('#specs').innerHTML = [['Disponibilidad', `<span class="avail${out ? ' out' : ''}">${availText(p.stock)}</span>`], ...(SHOWROOM.on && p.salon && !out ? [['Showroom', esc(SHOWROOM.lugar + ', ' + SHOWROOM.piso.toLowerCase())]] : []), ['Talla', esc(sizeText(p) || '—')], ['Color', esc(p.color || '—')], ['SKU', esc(p.sku)]].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   curP = p; syncAdd();
   const cta = $('#cta');
   if (S.whatsapp) {
@@ -378,6 +397,17 @@ function openItem(p) {
   $('#dlg').showModal();
 }
 /* ---------- Cómo comprar ---------- */
+// ---- SHOWROOM (prendas en exhibición en Dafela Nail Studio) ----
+const SHOWROOM = {
+  on: true, // pon false para ocultar el showroom
+  lugar: 'Dafela Nail Studio',
+  piso: 'Segundo piso',
+  direccion: 'Av. Guanajuato 1308, Col. Jardines del Moral, C.P. 37160', // dirección completa del lugar
+  ciudad: 'León de los Aldama, Gto.',
+  mapa: '' // opcional: pega aquí el enlace de Google Maps del lugar; si lo pones, el botón "Cómo llegar" usa este enlace
+};
+const showItems = () => SHOWROOM.on ? products.filter(p => p.salon && p.stock > 0) : [];
+const mapsUrl = () => SHOWROOM.mapa || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((SHOWROOM.direccion ? [SHOWROOM.direccion, SHOWROOM.ciudad] : [SHOWROOM.lugar, SHOWROOM.ciudad]).filter(Boolean).join(', ')));
 // ---- BUEN FIN KUTELLE (promo por tiempo limitado) ----
 const BF = {
   on: true, // pon false para apagar toda la promo
@@ -401,6 +431,7 @@ function bfBanner() {
 const ENVIO = 40; // costo de envío a domicilio en León (MXN). Cámbialo aquí.
 const ENVIO_GRATIS = 999; // compra mínima (MXN) para envío gratis a domicilio en León. Pon 0 para desactivarlo.
 const IC = {
+  pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.800 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   hanger: '<path d="M12 7a2 2 0 1 1 2-2"/><path d="M12 7v1.5L3 15h18l-9-6.5"/>',
   heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.4A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
   send: '<path d="M21 3 10 14"/><path d="M21 3l-7 18-4-7-7-4 18-7z"/>',
@@ -423,6 +454,18 @@ $('#hclose').onclick = $('#hgo').onclick = () => $('#hdlg').close();
 $('#hdlg').addEventListener('click', e => { if (e.target === $('#hdlg')) $('#hdlg').close(); });
 const openPol = () => { $('#pdlg').showModal(); $('#pdlg').scrollTop = 0; };
 $('#mast').addEventListener('click', e => { if (e.target.closest('#polBtn')) openPol(); });
+function openShow() {
+  const n = showItems().length;
+  $('#sbody').innerHTML = `<h3 id="sTitle">Showroom</h3><p class="sub">Ven a ver y probarte nuestras prendas 💛</p>
+    <div class="shaddr"><b>${esc(SHOWROOM.lugar)}</b>${SHOWROOM.direccion ? esc(SHOWROOM.direccion) + '<br>' : ''}${esc(SHOWROOM.ciudad)}<br><span class="fl">${esc(SHOWROOM.piso)}</span></div>
+    <a class="cta" href="${esc(mapsUrl())}" target="_blank" rel="noopener">${ico('pin')}Cómo llegar</a>
+    ${n ? `<button class="cta alt" id="shSee" type="button">Ver las ${n} ${n === 1 ? 'prenda' : 'prendas'} que están ahí ahora</button>` : '<p class="note" style="margin-top:14px">Por ahora no hay prendas en exhibición. Vuelve pronto 💛</p>'}
+    <p class="note">No están todas las prendas del catálogo y la exhibición cambia seguido. Si te interesa una pieza en particular, escríbenos y te decimos si está en el showroom.</p>`;
+  $('#sdlg').showModal(); $('#sdlg').scrollTop = 0;
+}
+$('#mast').addEventListener('click', e => { if (e.target.closest('#shBtn')) openShow(); });
+$('#sclose').onclick = () => $('#sdlg').close();
+$('#sdlg').addEventListener('click', e => { if (e.target === $('#sdlg')) $('#sdlg').close(); if (e.target.closest('#shSee')) { $('#sdlg').close(); current = '__show'; renderPills(); renderMain(); const top = $('.nav').offsetTop - 2; window.scrollTo({ top }); } });
 $('#foot').addEventListener('click', e => { if (e.target.closest('#polFoot')) openPol(); });
 $('#pclose').onclick = $('#pgo').onclick = () => $('#pdlg').close();
 $('#hpol').onclick = () => { $('#hdlg').close(); openPol(); };
