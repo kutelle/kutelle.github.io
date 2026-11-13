@@ -352,6 +352,7 @@ function apply(data) {
   if (current !== 'all' && current !== '__show' && !allCats.includes(current)) current = 'all';
   if (current === '__show' && !showItems().length) current = 'all';
   header(data.updatedAt); renderPills(); renderMain(); reconcile();
+  if (/[?&]debug/.test(location.search)) { let d = document.getElementById('dbg'); if (!d) { d = document.createElement('div'); d.id = 'dbg'; d.style.cssText = 'position:fixed;left:8px;right:8px;top:8px;z-index:99;background:#fff;color:#000;border:2px solid #c00;border-radius:10px;padding:10px;font:13px/1.4 sans-serif'; document.body.appendChild(d); } const all = data.products || []; d.textContent = 'Diagnóstico showroom: ' + all.length + ' productos recibidos · con campo showroom: ' + all.filter(p => 'salon' in p).length + ' · en showroom: ' + all.filter(p => p.salon).length + ' · disponibles en showroom: ' + showItems().length; }
 }
 async function fetchCatalog(u, k) {
   const call = async headers => {
@@ -412,7 +413,8 @@ const SHOWROOM = {
   ciudad: 'León de los Aldama, Gto.',
   horario: [['Lunes a viernes', '10:30 a. m. – 5:30 p. m.'], ['Sábados', '10:30 a. m. – 2:30 p. m.'], ['Domingo', 'Cerrado']], // se muestra tal cual en la ventana
   abre: { 1: [630, 1050], 2: [630, 1050], 3: [630, 1050], 4: [630, 1050], 5: [630, 1050], 6: [630, 870] }, // día (0=domingo) → [abre, cierra] en minutos desde las 12 a. m.; sirve para decir "Abierto ahora"
-  mapa: 'https://maps.app.goo.gl/Y4MJNuF2EcAB9N1x5' // enlace de Google Maps del lugar; el botón "Cómo llegar" usa este enlace
+  coords: '21.1464364,-101.6984771', // punto exacto (latitud,longitud): el botón "Cómo llegar" abre la ruta hasta aquí
+  mapa: 'https://maps.app.goo.gl/Y4MJNuF2EcAB9N1x5' // enlace para solo ver el lugar en Google Maps
 };
 function showOpen() {
   try {
@@ -422,7 +424,7 @@ function showOpen() {
   } catch { return null; }
 }
 const showItems = () => SHOWROOM.on ? products.filter(p => p.salon && p.stock > 0) : [];
-const mapsUrl = () => SHOWROOM.mapa || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((SHOWROOM.direccion ? [SHOWROOM.direccion, SHOWROOM.ciudad] : [SHOWROOM.lugar, SHOWROOM.ciudad]).filter(Boolean).join(', ')));
+const mapsUrl = () => SHOWROOM.coords ? 'https://www.google.com/maps/dir/?api=1&destination=' + SHOWROOM.coords : (SHOWROOM.mapa || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((SHOWROOM.direccion ? [SHOWROOM.direccion, SHOWROOM.ciudad] : [SHOWROOM.lugar, SHOWROOM.ciudad]).filter(Boolean).join(', '))));
 // ---- BUEN FIN KUTELLE (promo por tiempo limitado) ----
 const BF = {
   on: true, // pon false para apagar toda la promo
@@ -475,6 +477,7 @@ function openShow() {
     <div class="shaddr"><b>${esc(SHOWROOM.lugar)}</b>${SHOWROOM.direccion ? esc(SHOWROOM.direccion) + '<br>' : ''}${esc(SHOWROOM.ciudad)}<br><span class="fl">${esc(SHOWROOM.piso)}</span></div>
     <div class="shhor"><h4>Horario${showOpen() === null ? '' : ` <span class="${showOpen() ? 'on' : 'off'}">${showOpen() ? 'Abierto ahora' : 'Cerrado ahora'}</span>`}</h4>${SHOWROOM.horario.map(([d, h]) => `<div><span>${esc(d)}</span><b>${esc(h)}</b></div>`).join('')}</div>
     <a class="cta" href="${esc(mapsUrl())}" target="_blank" rel="noopener">${ico('pin')}Cómo llegar</a>
+    ${SHOWROOM.mapa ? `<p style="text-align:center;margin:10px 0 0"><a class="plink" href="${esc(SHOWROOM.mapa)}" target="_blank" rel="noopener">Ver el lugar en Google Maps</a></p>` : ''}
     ${n ? `<button class="cta alt" id="shSee" type="button">Ver las ${n} ${n === 1 ? 'prenda' : 'prendas'} que están ahí ahora</button>` : '<p class="note" style="margin-top:14px">Por ahora no hay prendas en exhibición. Vuelve pronto 💛</p>'}
     <p class="note">No están todas las prendas del catálogo y la exhibición cambia seguido. Si te interesa una pieza en particular, escríbenos y te decimos si está en el showroom.</p>`;
   $('#sdlg').showModal(); $('#sdlg').scrollTop = 0;
