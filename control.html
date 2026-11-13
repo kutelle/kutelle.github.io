@@ -327,6 +327,8 @@ body.locked .wrap,body.locked .tabs{visibility:hidden}
       <div class="bar w"><button class="btn primary" id="salScanPut">Escanear para dejar</button><button class="btn" id="salScanBack">Escanear para recoger</button></div>
       <div class="bar w" style="margin-top:-2px"><button class="btn" id="salPut">Elegir prendas a mano</button></div>
       <p class="stats num" id="salonStats"></p>
+      <div class="bar w" style="margin-top:-2px"><button class="btn" id="salSync" type="button">Actualizar showroom del catálogo</button></div>
+      <p class="hint" id="salSyncMsg" style="margin:-4px 2px 10px"></p>
       <div class="rows" id="salonList"></div>
       <h3>Comisión de la chica del salón</h3>
       <div class="kv num" id="salonComm"></div>
@@ -1379,8 +1381,8 @@ function scheduleShowroomSync() {
   if (!canWrite || !store || store.ready === false) return;
   clearTimeout(shTimer); shTimer = setTimeout(syncShowroom, 2500);
 }
-async function syncShowroom() {
-  if (shBusy || !canWrite || !store || store.ready === false) return; shBusy = true;
+async function syncShowroom(manual) {
+  if (shBusy || !canWrite || !store || store.ready === false) { if (manual) toast(store && store.ready === false ? 'Aún está cargando, espera un momento' : 'Ya se está actualizando'); return; } shBusy = true;
   try {
     const want = new Set(salonStock().map(x => x.sku));
     for (const [id, p] of Object.entries(S.products)) {
@@ -1388,8 +1390,15 @@ async function syncShowroom() {
       const w = want.has(p.sku);
       if (!!p.salon !== w) await store.set('products', id, { ...p, salon: w });
     }
-  } catch (e) { console.error(e); } finally { shBusy = false; }
+  } catch (e) { console.error(e); if (manual) toast('No se pudo actualizar el catálogo'); } finally { shBusy = false; }
+  if (manual) { showroomMsg(); toast('Showroom actualizado'); }
 }
+function showroomMsg() {
+  const el = $('#salSyncMsg'); if (!el) return;
+  const here = salonStock().length, marked = Object.values(S.products).filter(p => p && p.salon).length;
+  el.textContent = `En el salón: ${here}. Marcadas para el catálogo: ${marked}.`;
+}
+$('#salSync').onclick = () => syncShowroom(true);
 function renderAll() {
   fillDatalists();
   scheduleShowroomSync();
@@ -2081,7 +2090,7 @@ function salonCommission() {
   return { list, sales, profit, earned, pending, paid, due: earned - paid, rEarned, rPending, rPaid, rDue: rEarned - rPaid };
 }
 function renderSalon() {
-  const here = salonStock(), units = here.reduce((s, x) => s + x.qty, 0), c = salonCommission();
+  const here = salonStock(), units = here.reduce((s, x) => s + x.qty, 0), c = salonCommission(); showroomMsg();
   $('#salonStats').textContent = `${units} ${units === 1 ? 'pieza' : 'piezas'} en el salón. Por cada venta ahí se aparta ${salonRate()}% de tu ganancia para la chica del salón y ${salonRent()}% para la renta del espacio. El catálogo muestra estas prendas en “En showroom” y se actualiza solo cuando las dejas, las recoges o se venden.`;
   $('#salonList').innerHTML = here.length ? here.map(x => `<button class="row" type="button" data-sku="${esc(x.sku)}">
     <div class="l"><b>${esc(titleOf(x.p))}</b><small>${esc(subOf(x.p))}</small></div>
