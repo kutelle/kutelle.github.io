@@ -130,6 +130,12 @@ button.cta:disabled{background:var(--line);color:var(--muted);cursor:default;bor
 .shgo{display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:var(--mauve);color:#fff;border-radius:999px;padding:8px 16px;font-weight:600;font-size:.9rem}
 .shgo svg{width:16px;height:16px}
 .shaddr{margin:10px 0 0;padding:14px 16px;border-radius:12px;background:var(--mauve-soft);color:var(--ink);line-height:1.45}
+.shhor{margin:10px 0 0;padding:14px 16px;border-radius:12px;background:var(--mauve-soft);color:var(--ink)}
+.shhor h4{margin:0 0 6px;font-size:1rem;color:var(--mauve);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.shhor h4 span{font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:999px;background:#fff;color:var(--mauve)}
+.shhor h4 span.on{background:var(--mauve);color:#fff}
+.shhor div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:.92rem}
+.shhor div b{font-weight:600;text-align:right}
 .shaddr b{display:block;color:var(--mauve);font-size:1.05rem}
 .shaddr .fl{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:999px;background:var(--mauve);color:#fff;font-size:.82rem;font-weight:600}
 a.cta svg,button.cta svg{width:18px;height:18px;vertical-align:-3px;margin-right:6px}
@@ -404,8 +410,17 @@ const SHOWROOM = {
   piso: 'Segundo piso',
   direccion: 'Av. Guanajuato 1308, Col. Jardines del Moral, C.P. 37160', // dirección completa del lugar
   ciudad: 'León de los Aldama, Gto.',
+  horario: [['Lunes a viernes', '10:30 a. m. – 5:30 p. m.'], ['Sábados', '10:30 a. m. – 2:30 p. m.'], ['Domingo', 'Cerrado']], // se muestra tal cual en la ventana
+  abre: { 1: [630, 1050], 2: [630, 1050], 3: [630, 1050], 4: [630, 1050], 5: [630, 1050], 6: [630, 870] }, // día (0=domingo) → [abre, cierra] en minutos desde las 12 a. m.; sirve para decir "Abierto ahora"
   mapa: '' // opcional: pega aquí el enlace de Google Maps del lugar; si lo pones, el botón "Cómo llegar" usa este enlace
 };
+function showOpen() {
+  try {
+    const f = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(bfNow()));
+    const g = t => (f.find(x => x.type === t) || {}).value, d = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(g('weekday')), mins = (+g('hour')) * 60 + (+g('minute')), h = SHOWROOM.abre[d];
+    return !!h && mins >= h[0] && mins < h[1];
+  } catch { return null; }
+}
 const showItems = () => SHOWROOM.on ? products.filter(p => p.salon && p.stock > 0) : [];
 const mapsUrl = () => SHOWROOM.mapa || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((SHOWROOM.direccion ? [SHOWROOM.direccion, SHOWROOM.ciudad] : [SHOWROOM.lugar, SHOWROOM.ciudad]).filter(Boolean).join(', ')));
 // ---- BUEN FIN KUTELLE (promo por tiempo limitado) ----
@@ -458,6 +473,7 @@ function openShow() {
   const n = showItems().length;
   $('#sbody').innerHTML = `<h3 id="sTitle">Showroom</h3><p class="sub">Ven a ver y probarte nuestras prendas 💛</p>
     <div class="shaddr"><b>${esc(SHOWROOM.lugar)}</b>${SHOWROOM.direccion ? esc(SHOWROOM.direccion) + '<br>' : ''}${esc(SHOWROOM.ciudad)}<br><span class="fl">${esc(SHOWROOM.piso)}</span></div>
+    <div class="shhor"><h4>Horario${showOpen() === null ? '' : ` <span class="${showOpen() ? 'on' : 'off'}">${showOpen() ? 'Abierto ahora' : 'Cerrado ahora'}</span>`}</h4>${SHOWROOM.horario.map(([d, h]) => `<div><span>${esc(d)}</span><b>${esc(h)}</b></div>`).join('')}</div>
     <a class="cta" href="${esc(mapsUrl())}" target="_blank" rel="noopener">${ico('pin')}Cómo llegar</a>
     ${n ? `<button class="cta alt" id="shSee" type="button">Ver las ${n} ${n === 1 ? 'prenda' : 'prendas'} que están ahí ahora</button>` : '<p class="note" style="margin-top:14px">Por ahora no hay prendas en exhibición. Vuelve pronto 💛</p>'}
     <p class="note">No están todas las prendas del catálogo y la exhibición cambia seguido. Si te interesa una pieza en particular, escríbenos y te decimos si está en el showroom.</p>`;
